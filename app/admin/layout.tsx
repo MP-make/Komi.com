@@ -25,6 +25,7 @@ import {
   Settings,
   Grid2X2,
   Receipt,
+  Store,
 } from "lucide-react";
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
@@ -146,6 +147,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const isMediaActive = pathname.startsWith("/admin/media");
   const isPosActive = pathname.startsWith("/admin/pos");
   const isKdsActive = pathname.startsWith("/admin/kds") || pathname.startsWith("/chef");
+  const isStoreSettingsActive = pathname.startsWith("/admin/settings/store");
 
   const currentTab = searchParams?.get("tab") || "products";
   const isProductosActive = isMenuSection && (currentTab === "products" || !searchParams?.get("tab"));
@@ -164,6 +166,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     if (isOrdersActive) return "Ventas / Historial de Pedidos";
     if (isKdsActive) return "Ventas / Cocina (KDS)";
     if (isStaffActive) return "Configuración / Personal";
+    if (isStoreSettingsActive) return "Configuración / Tienda Online & WhatsApp";
     if (isMediaActive) return "Multimedia";
     if (isTablesConfigActive) return "Configuración / Distribución de Mesas";
     if (isSettingsSection) return "Configuración";
@@ -518,6 +521,18 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
+                  href="/admin/settings/store"
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    isStoreSettingsActive
+                      ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/20"
+                      : "text-stone-400 hover:text-white hover:bg-stone-800/60"
+                  }`}
+                >
+                  <Store size={14} className={isStoreSettingsActive ? "text-amber-400" : "text-stone-500"} />
+                  <span>Tienda Online & WhatsApp</span>
+                </Link>
+
+                <Link
                   href="/admin/settings/tables"
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                     isTablesConfigActive
@@ -532,20 +547,25 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
-          {/* Enlace rápido: Ver Carta Online */}
+          {/* Enlace rápido: Ver Tienda Online Komi */}
           <div className="pt-2">
             <Link
-              href="/delivery"
+              href="/t/quebravazo"
               target="_blank"
-              title="Ver Carta Online (Pestaña nueva)"
-              className={`flex items-center gap-3 rounded-2xl text-xs font-semibold text-stone-400 hover:text-amber-400 hover:bg-stone-800/50 transition-all ${
+              title="Ver Tienda Online / Catálogo WhatsApp (Pestaña nueva)"
+              className={`flex items-center gap-3 rounded-2xl text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-all ${
                 isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2 w-full"
               }`}
             >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-stone-400 hover:text-amber-400">
-                <ExternalLink size={17} />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-emerald-400">
+                <Store size={17} />
               </div>
-              {!isCollapsed && <span>Ver Carta Online</span>}
+              {!isCollapsed && (
+                <div className="flex items-center justify-between w-full">
+                  <span>Tienda Online</span>
+                  <ExternalLink size={12} className="opacity-70" />
+                </div>
+              )}
             </Link>
           </div>
         </nav>

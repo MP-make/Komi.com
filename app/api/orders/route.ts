@@ -18,18 +18,34 @@ export async function POST(request: Request) {
       const defaultUserId = users?.[0]?.id || '00000000-0000-0000-0000-000000000001';
       const defaultUserName = users?.[0]?.name || 'Sistema Web';
 
+      const customerName = payload.customer?.name || payload.customerName || defaultUserName;
+      const customerPhone = payload.customer?.phone || payload.phone || '';
+      const address = payload.customer?.address || payload.address || '';
+      const customNotes = payload.notes || '';
+      
+      const fullNotes = [
+        customerPhone ? `Tel: ${customerPhone}` : '',
+        address ? `Dirección: ${address}` : '',
+        customNotes ? `Notas: ${customNotes}` : ''
+      ].filter(Boolean).join(' | ');
+
       const orderRecord = {
         waiter_id: defaultUserId,
-        waiter_name: payload.customer?.name || defaultUserName,
-        table_number: payload.tableNumber || (payload.type === 'DELIVERY' ? 'Delivery' : 'Web'),
-        order_type: payload.type === 'DELIVERY' ? 'llevar' : 'mesa',
+        waiter_name: customerName,
+        table_number: payload.tableNumber || (payload.type === 'DELIVERY' ? 'Delivery' : (payload.type === 'LLEVAR' ? 'Para Llevar' : 'Web')),
+        order_type: payload.type === 'DELIVERY' ? 'delivery' : (payload.type === 'LLEVAR' ? 'llevar' : 'mesa'),
         items: payload.items || [],
-        subtotal: payload.total || 0,
-        takeaway_charge: 0,
+        subtotal: payload.subtotal || payload.total || 0,
+        takeaway_charge: payload.deliveryCost || 0,
         total: payload.total || 0,
         status: 'pending',
-        payment_method: (payload.paymentMethod || 'efectivo').toLowerCase().includes('yape') ? 'yape' : 'efectivo',
+        payment_method: (payload.paymentMethod || 'efectivo').toLowerCase().includes('yape')
+          ? 'yape'
+          : (payload.paymentMethod || '').toLowerCase().includes('plin')
+          ? 'plin'
+          : (payload.paymentMethod || 'efectivo'),
         payment_status: 'pending',
+        notes: fullNotes,
       };
 
       await supabase.from('waiter_orders').insert([orderRecord]);

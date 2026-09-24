@@ -36,7 +36,7 @@ export async function GET() {
         category: cat?.name || 'Otros',
         category_slug: cat?.slug || null,
         description: item.description || '',
-        stock: 99,
+        stock: item.stock !== undefined && item.stock !== null ? Number(item.stock) : 50,
         featured: Boolean(item.is_featured),
         isMenuDelDia: Boolean(item.is_featured),
         minPrice: Number(item.price || 0) * 0.5,
