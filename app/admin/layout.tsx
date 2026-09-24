@@ -199,20 +199,19 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             <div className="space-y-3">
               {/* Fila 1: Logo + Nombre */}
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl overflow-hidden border border-stone-700 flex-shrink-0 bg-stone-950 flex items-center justify-center shadow-md">
-                  <Image
-                    src="/logo_que_bravazo.png"
-                    alt="Logo"
-                    width={36}
-                    height={36}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-lg shadow-md shadow-amber-500/20 shrink-0">
+                  K
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-black tracking-tight text-white uppercase truncate">
-                    ¡QUÉ BRAVAZO!
-                  </span>
-                  <span className="text-[10px] text-stone-400 font-medium">Panel Admin SaaS</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base font-black tracking-tight text-white">
+                      Komi<span className="text-amber-400">.</span>
+                    </span>
+                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      POS
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-stone-400 font-medium">Panel Administrativo</span>
                 </div>
               </div>
 
@@ -239,14 +238,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           ) : (
             /* Modo Colapsado (Mini-Rail) */
             <div className="flex flex-col items-center gap-3 py-1">
-              <div className="w-9 h-9 rounded-xl overflow-hidden border border-stone-700 flex-shrink-0 bg-stone-950 flex items-center justify-center shadow-md">
-                <Image
-                  src="/logo_que_bravazo.png"
-                  alt="Logo"
-                  width={36}
-                  height={36}
-                  className="w-full h-full object-cover"
-                />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-lg shadow-md shadow-amber-500/20 shrink-0">
+                K
               </div>
 
               <button
@@ -550,7 +543,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           {/* Enlace rápido: Ver Tienda Online Komi */}
           <div className="pt-2">
             <Link
-              href="/t/quebravazo"
+              href="/t/demo"
               target="_blank"
               title="Ver Tienda Online / Catálogo WhatsApp (Pestaña nueva)"
               className={`flex items-center gap-3 rounded-2xl text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-all ${

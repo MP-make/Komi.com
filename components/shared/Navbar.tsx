@@ -31,6 +31,8 @@ export default function Navbar() {
   }, [pathname, setIsCartOpen]);
 
   const hideNavbar =
+    pathname?.startsWith('/t') ||
+    pathname?.startsWith('/tienda') ||
     pathname?.startsWith('/waiter') ||
     pathname === '/login' ||
     pathname === '/register' ||

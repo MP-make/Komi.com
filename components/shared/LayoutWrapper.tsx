@@ -13,7 +13,9 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   useEffect(() => { initProducts(); }, [initProducts]);
   
   const isHome = pathname === '/';
+  const isKomiStore = pathname?.startsWith('/t') || pathname?.startsWith('/tienda') || pathname?.startsWith('/delivery');
   const noNavbar = isHome ||
+                   isKomiStore ||
                    pathname?.startsWith('/waiter') || 
                    pathname?.startsWith('/chef') || 
                    pathname === '/login' || 
@@ -31,7 +33,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <Toast />
-      {!isHome && <GlobalCartDrawer />}
+      {!isHome && !isKomiStore && <GlobalCartDrawer />}
     </>
   );
 }

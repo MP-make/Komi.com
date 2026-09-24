@@ -22,18 +22,18 @@ import {
 import { DEFAULT_TENANT } from "@/lib/tenant";
 
 export default function StoreSettingsPage() {
-  const [slug, setSlug] = useState("quebravazo");
-  const [storeName, setStoreName] = useState("¡Qué Bravazo! Market & Restobar");
+  const [slug, setSlug] = useState("demo");
+  const [storeName, setStoreName] = useState("Komi Market & Store");
   const [whatsapp, setWhatsapp] = useState("51987654321");
-  const [address, setAddress] = useState("Av. Las Brisas 450, Lima");
+  const [address, setAddress] = useState("Av. Principal 123, Lima");
   const [description, setDescription] = useState(
-    "Catálogo interactivo con pedidos directos a WhatsApp y entrega rápida."
+    "Catálogo digital interactivo con pedidos directos a WhatsApp y entrega rápida."
   );
   const [deliveryCost, setDeliveryCost] = useState("5.00");
   const [allowDelivery, setAllowDelivery] = useState(true);
   const [allowTakeaway, setAllowTakeaway] = useState(true);
   const [yapeNumber, setYapeNumber] = useState("987654321");
-  const [yapeHolder, setYapeHolder] = useState("¡Qué Bravazo!");
+  const [yapeHolder, setYapeHolder] = useState("Komi Store");
   const [isOpen, setIsOpen] = useState(true);
 
   const [savedSuccess, setSavedSuccess] = useState(false);

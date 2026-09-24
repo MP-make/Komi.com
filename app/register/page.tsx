@@ -1,9 +1,24 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Mail, Lock, Eye, EyeOff, Loader2, User, Phone, CreditCard, CheckCircle, ArrowLeft } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Loader2,
+  User,
+  Phone,
+  CreditCard,
+  CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { registerClient } from "@/lib/firebase/auth";
 import { useAuthStore } from "@/lib/stores/auth";
 
@@ -19,8 +34,8 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [step, setStep] = useState(1); // 1: datos personales, 2: credenciales
-  
+  const [step, setStep] = useState(1); // 1: datos personales/negocio, 2: contraseña
+
   const router = useRouter();
   const { login } = useAuthStore();
 
@@ -46,7 +61,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Registrar usuario en base de datos
+      // Registrar usuario en Firebase / Supabase / Auth
       const user = await registerClient(
         formData.email,
         formData.password,
@@ -62,11 +77,11 @@ export default function RegisterPage() {
         name: formData.name,
         phone: formData.phone,
         dni: formData.dni,
-        role: 'client',
+        role: "admin",
       });
 
-      // Redirigir al home
-      router.push("/");
+      // Redirigir al panel de administración
+      router.push("/admin");
     } catch (err: any) {
       setError(err.message || "Error al crear la cuenta");
     } finally {
@@ -75,8 +90,8 @@ export default function RegisterPage() {
   };
 
   const nextStep = () => {
-    if (!formData.name || !formData.email) {
-      setError("Completa los campos obligatorios");
+    if (!formData.name.trim() || !formData.email.trim()) {
+      setError("Completa los campos obligatorios para continuar");
       return;
     }
     setError("");
@@ -84,167 +99,259 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 flex">
-      {/* Botón Regresar - Posición absoluta */}
-      <Link
-        href="/"
-        className="absolute top-6 left-6 z-10 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-lg transition-all border border-white/20"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span className="hidden sm:inline text-sm font-medium">Volver al Inicio</span>
-      </Link>
+    <div className="min-h-screen bg-stone-950 flex flex-col lg:flex-row relative overflow-hidden font-sans text-stone-100">
+      {/* ======================================================== */}
+      {/* LADO IZQUIERDO: SHOWCASE SAAS KOMI (Desktop / Tablet horizontal) */}
+      {/* ======================================================== */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] relative flex-col justify-between p-10 xl:p-14 overflow-hidden border-r border-stone-800/80">
+        {/* Imagen de Fondo Restaurante / Comercio */}
+        <div className="absolute inset-0 bg-stone-950">
+          <Image
+            src="/Fondo restaurante.png"
+            alt="Restaurante Komi"
+            fill
+            className="object-cover opacity-35 filter blur-[0.5px]"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/80 to-stone-950/40" />
+        </div>
 
-      {/* Lado izquierdo - Imagen/Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-600/20 to-orange-600/20" />
-        <Image
-          src="/banner_ventify_1920x600.jpg"
-          alt="¡Qué Bravazo! Restobar"
-          fill
-          className="object-cover"
-          priority
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/50 to-transparent" />
-        
-        {/* Contenido sobre la imagen */}
-        <div className="absolute bottom-0 left-0 right-0 p-12">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            Únete a <span className="text-amber-400">¡Qué Bravazo!</span>
-          </h1>
-          <p className="text-stone-300 text-lg max-w-md mb-8">
-            Crea tu cuenta y pide tu Broaster, hamburguesas, alitas y más con delivery express. 🍗🔥
-          </p>
-          
-          {/* Beneficios */}
-          <div className="space-y-3">
-            {[
-              "Pedidos rápidos con tus datos guardados",
-              "Historial de compras y favoritos",
-              "Promociones y descuentos exclusivos",
-              "Acumula puntos con cada pedido"
-            ].map((benefit, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-amber-400" />
-                <span className="text-stone-300">{benefit}</span>
-              </div>
-            ))}
+        {/* Encabezado Izquierdo: Branding Komi */}
+        <div className="relative z-10 flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2.5 group">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-xl shadow-lg shadow-amber-500/25 group-hover:scale-105 transition-transform">
+              K
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-2xl font-black tracking-tight text-white">
+                Komi<span className="text-amber-400">.</span>
+              </span>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                SaaS
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs text-stone-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span>Volver a la portada</span>
+          </Link>
+        </div>
+
+        {/* Contenido Central: Beneficios de Registro */}
+        <div className="relative z-10 max-w-xl space-y-7 my-auto py-8">
+          <div>
+            <h1 className="text-3xl xl:text-4xl font-black text-white tracking-tight leading-tight">
+              Comienza a digitalizar y hacer crecer tu negocio
+            </h1>
+            <p className="text-sm xl:text-base text-stone-300 mt-2 font-medium leading-relaxed">
+              Crea tu cuenta en menos de 2 minutos y accede al catálogo digital, punto de venta (POS) y control total en la nube.
+            </p>
           </div>
+
+          {/* Lista de ventajas con checks */}
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <CheckCircle2 size={15} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white leading-tight">
+                  Catálogo Digital & WhatsApp Inmediato
+                </h4>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  Comparte tu enlace único en redes sociales y recibe pedidos directos a tu celular.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <CheckCircle2 size={15} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white leading-tight">
+                  Punto de Venta (POS) & Inventario en Vivo
+                </h4>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  El stock se actualiza automáticamente al vender en caja o en la tienda web.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <CheckCircle2 size={15} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white leading-tight">
+                  0% de Comisiones por tus Ventas
+                </h4>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  Tus clientes te pagan por Yape, Plin o efectivo directo a tu cuenta sin descuentos.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Tarjeta de Prueba Gratis */}
+          <div className="p-5 rounded-2xl bg-stone-900/60 backdrop-blur-md border border-stone-800/80 shadow-xl space-y-1.5">
+            <h5 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles size={14} />
+              Prueba Gratuita de 14 Días
+            </h5>
+            <p className="text-xs text-stone-300 leading-relaxed">
+              Sin tarjeta de crédito obligatoria. Acceso completo a todas las funciones profesionales para que compruebes el impacto en tu negocio desde el primer día.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer Izquierdo */}
+        <div className="relative z-10 flex items-center justify-between text-xs text-stone-500 pt-4 border-t border-stone-800/80">
+          <span>© {new Date().getFullYear()} Komi. Todos los derechos reservados.</span>
+          <span className="flex items-center gap-1 text-stone-400">
+            <ShieldCheck size={14} className="text-emerald-400" />
+            Infraestructura Segura Cloud
+          </span>
         </div>
       </div>
 
-      {/* Lado derecho - Formulario */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          {/* Logo móvil */}
-          <div className="lg:hidden text-center mb-8">
-            <Link href="/" className="inline-block">
-              <span className="text-3xl font-bold">
-                <span className="text-amber-400">¡Qué</span>
-                <span className="text-white"> Bravazo!</span>
+      {/* ======================================================== */}
+      {/* LADO DERECHO: FORMULARIO CON VIDEO DE FONDO */}
+      {/* En móvil ocupa toda la pantalla (w-full min-h-screen) */}
+      {/* En desktop ocupa el 50% derecho con el video de fondo */}
+      {/* ======================================================== */}
+      <div className="w-full lg:w-1/2 xl:w-[45%] min-h-screen flex items-center justify-center relative overflow-hidden p-6 sm:p-10">
+        {/* Video de Fondo */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="/login.png"
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src="/login.mp4" type="video/mp4" />
+        </video>
+
+        {/* Overlay oscuro para contraste */}
+        <div className="absolute inset-0 bg-stone-950/75 backdrop-blur-[2px]" />
+
+        {/* Tarjeta de Formulario de Registro */}
+        <div className="relative z-10 w-full max-w-sm sm:max-w-md bg-stone-950/80 backdrop-blur-xl border border-stone-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          {/* Header del Formulario */}
+          <div className="text-center space-y-1">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-xl shadow-md shadow-amber-500/25">
+                K
+              </div>
+              <span className="text-2xl font-black tracking-tight text-white">
+                Komi<span className="text-amber-400">.</span>
               </span>
-            </Link>
+            </div>
+            <h2 className="text-xl font-bold text-white tracking-tight">Crear Cuenta de Negocio</h2>
+            <p className="text-xs text-stone-400">
+              {step === 1 ? "Paso 1: Datos de contacto y negocio" : "Paso 2: Contraseña y seguridad"}
+            </p>
           </div>
 
-          {/* Card del formulario */}
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
-            {/* Progress indicator */}
-            <div className="flex items-center justify-center gap-4 mb-8">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 1 ? 'bg-amber-500' : 'bg-stone-700'} text-white text-sm font-bold`}>
-                1
-              </div>
-              <div className={`w-16 h-1 rounded-full ${step >= 2 ? 'bg-amber-500' : 'bg-stone-700'}`} />
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 2 ? 'bg-amber-500' : 'bg-stone-700'} text-white text-sm font-bold`}>
-                2
-              </div>
+          {/* Indicador de Pasos */}
+          <div className="flex items-center justify-center gap-3">
+            <div
+              className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all ${
+                step >= 1 ? "bg-amber-500 text-black shadow-md shadow-amber-500/25" : "bg-stone-800 text-stone-400"
+              }`}
+            >
+              1
             </div>
-
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">
-                {step === 1 ? "Datos Personales" : "Crear Contraseña"}
-              </h2>
-              <p className="text-stone-400">
-                {step === 1 
-                  ? "Cuéntanos un poco sobre ti" 
-                  : "Configura tu acceso seguro"}
-              </p>
+            <div className={`w-12 h-1 rounded-full transition-all ${step >= 2 ? "bg-amber-500" : "bg-stone-800"}`} />
+            <div
+              className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all ${
+                step >= 2 ? "bg-amber-500 text-black shadow-md shadow-amber-500/25" : "bg-stone-800 text-stone-400"
+              }`}
+            >
+              2
             </div>
+          </div>
 
-            {/* Error message */}
-            {error && (
-              <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl">
-                <p className="text-rose-400 text-sm text-center">{error}</p>
-              </div>
-            )}
+          {error && (
+            <div className="p-3 bg-rose-500/15 border border-rose-500/30 rounded-2xl text-center">
+              <p className="text-rose-300 text-xs font-semibold">{error}</p>
+            </div>
+          )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {step === 1 ? (
-                <>
-                  {/* Nombre */}
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-stone-300 mb-2">
-                      Nombre completo *
-                    </label>
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
-                      <input
-                        id="name"
-                        name="name"
-                        type="text"
-                        required
-                        value={formData.name}
-                        onChange={handleChange}
-                        placeholder="Juan Pérez"
-                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
-                      />
-                    </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {step === 1 ? (
+              <>
+                {/* Nombre */}
+                <div>
+                  <label htmlFor="name" className="block text-xs font-bold text-stone-300 mb-1.5">
+                    Nombre o Razón Comercial *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={handleChange}
+                      placeholder="Ej. Mi Bodega / Restobar Don Pepe"
+                      className="w-full pl-10 pr-4 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
+                    />
                   </div>
+                </div>
 
-                  {/* Email */}
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-stone-300 mb-2">
-                      Correo electrónico *
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
-                      <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        required
-                        value={formData.email}
-                        onChange={handleChange}
-                        placeholder="tu@email.com"
-                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
-                      />
-                    </div>
+                {/* Email */}
+                <div>
+                  <label htmlFor="email" className="block text-xs font-bold text-stone-300 mb-1.5">
+                    Correo Electrónico *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="admin@tunegocio.com"
+                      className="w-full pl-10 pr-4 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
+                    />
                   </div>
+                </div>
 
-                  {/* Teléfono */}
+                {/* Teléfono y DNI en 2 columnas */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-stone-300 mb-2">
-                      Teléfono
+                    <label htmlFor="phone" className="block text-xs font-bold text-stone-300 mb-1.5">
+                      Teléfono WhatsApp
                     </label>
                     <div className="relative">
-                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                       <input
                         id="phone"
                         name="phone"
                         type="tel"
                         value={formData.phone}
                         onChange={handleChange}
-                        placeholder="999 888 777"
-                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+                        placeholder="987654321"
+                        className="w-full pl-10 pr-4 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
                       />
                     </div>
                   </div>
 
-                  {/* DNI */}
                   <div>
-                    <label htmlFor="dni" className="block text-sm font-medium text-stone-300 mb-2">
-                      DNI
+                    <label htmlFor="dni" className="block text-xs font-bold text-stone-300 mb-1.5">
+                      DNI o RUC
                     </label>
                     <div className="relative">
-                      <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
+                      <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                       <input
                         id="dni"
                         name="dni"
@@ -252,131 +359,121 @@ export default function RegisterPage() {
                         value={formData.dni}
                         onChange={handleChange}
                         placeholder="12345678"
-                        maxLength={8}
-                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+                        maxLength={11}
+                        className="w-full pl-10 pr-4 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
                       />
                     </div>
                   </div>
+                </div>
 
-                  {/* Next button */}
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-amber-500/20"
-                  >
-                    Continuar
-                  </button>
-                </>
-              ) : (
-                <>
-                  {/* Password */}
-                  <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-stone-300 mb-2">
-                      Contraseña *
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
-                      <input
-                        id="password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        required
-                        value={formData.password}
-                        onChange={handleChange}
-                        placeholder="Mínimo 6 caracteres"
-                        className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-300 transition-colors"
-                      >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Confirm Password */}
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-stone-300 mb-2">
-                      Confirmar contraseña *
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
-                      <input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type={showPassword ? "text" : "password"}
-                        required
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        placeholder="Repite tu contraseña"
-                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Resumen de datos */}
-                  <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                    <p className="text-stone-400 text-sm mb-2">Resumen:</p>
-                    <p className="text-white font-medium">{formData.name}</p>
-                    <p className="text-stone-400 text-sm">{formData.email}</p>
-                  </div>
-
-                  {/* Buttons */}
-                  <div className="flex gap-3">
+                {/* Botón Siguiente */}
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-extrabold rounded-xl transition-all text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.99] cursor-pointer"
+                >
+                  <span>Continuar a Seguridad</span>
+                  <ArrowRight size={16} />
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Contraseña */}
+                <div>
+                  <label htmlFor="password" className="block text-xs font-bold text-stone-300 mb-1.5">
+                    Contraseña *
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Mínimo 6 caracteres"
+                      className="w-full pl-10 pr-10 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
+                    />
                     <button
                       type="button"
-                      onClick={() => setStep(1)}
-                      className="flex-1 py-4 border border-white/20 hover:border-white/40 text-white font-medium rounded-xl transition-all"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white transition-colors cursor-pointer"
                     >
-                      Atrás
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:from-stone-600 disabled:to-stone-600 text-white font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Creando...
-                        </>
-                      ) : (
-                        "Crear Cuenta"
-                      )}
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                </>
-              )}
-            </form>
+                </div>
 
-            {/* Divider */}
-            <div className="relative my-8">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-transparent text-stone-500">¿Ya tienes cuenta?</span>
-              </div>
-            </div>
+                {/* Confirmar Contraseña */}
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-xs font-bold text-stone-300 mb-1.5">
+                    Confirmar Contraseña *
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="Repite tu contraseña"
+                      className="w-full pl-10 pr-10 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
+                    />
+                  </div>
+                </div>
 
-            {/* Login link */}
-            <Link
-              href="/login"
-              className="w-full py-4 border border-white/20 hover:border-amber-500/50 hover:bg-amber-500/5 text-white font-medium rounded-xl transition-all duration-300 flex items-center justify-center"
-            >
-              Iniciar Sesión
-            </Link>
-          </div>
+                {/* Resumen */}
+                <div className="p-3 bg-stone-900/90 rounded-xl border border-stone-800 text-xs space-y-0.5">
+                  <p className="text-stone-400">Cuenta para:</p>
+                  <p className="text-white font-bold">{formData.name}</p>
+                  <p className="text-amber-400 font-mono text-[11px]">{formData.email}</p>
+                </div>
 
-          {/* Privacy note */}
-          <div className="mt-6 text-center">
-            <p className="text-stone-500 text-xs">
-              Al registrarte aceptas nuestros{" "}
-              <Link href="#" className="text-amber-400 hover:underline">Términos de Servicio</Link>
-              {" "}y{" "}
-              <Link href="#" className="text-amber-400 hover:underline">Política de Privacidad</Link>
+                {/* Botones Atrás y Finalizar */}
+                <div className="flex gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="py-3 px-4 rounded-xl border border-stone-700 hover:bg-stone-800 text-stone-300 font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    Atrás
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex-1 py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 disabled:opacity-50 text-black font-extrabold rounded-xl transition-all text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.99] cursor-pointer"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Creando cuenta...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Crear mi Cuenta</span>
+                        <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </form>
+
+          {/* Enlace a Login */}
+          <div className="pt-2 text-center border-t border-stone-800/80">
+            <p className="text-xs text-stone-400">
+              ¿Ya tienes una cuenta registrada?{" "}
+              <Link
+                href="/login"
+                className="font-bold text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                Iniciar Sesión
+              </Link>
             </p>
           </div>
         </div>

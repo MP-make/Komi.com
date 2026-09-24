@@ -8,7 +8,7 @@ export default function SaasFaq() {
   const faqs = [
     {
       q: "¿Necesito comprar hardware costoso o terminales especiales?",
-      a: "No, para nada. RestoOS funciona 100% en la nube a través de la web. Tus meseros pueden usar sus propios teléfonos móviles o tablets Android/iOS, y la pantalla de cocina se puede abrir en cualquier tablet, televisor Smart o computadora común con navegador."
+      a: "No, para nada. Komi funciona 100% en la nube a través de la web. Tus meseros y cajeros pueden usar sus propios teléfonos móviles, tablets o computadoras comunes, y la tienda online funciona al instante sin instalar nada."
     },
     {
       q: "¿Cómo funciona la carta QR y el cobro con Yape o Plin?",

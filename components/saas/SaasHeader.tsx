@@ -45,14 +45,14 @@ export default function SaasHeader() {
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="font-heading font-black text-xl tracking-tight text-white">
-                  Resto<span className="text-orange-500">OS</span>
+                  Komi<span className="text-orange-500">.</span>
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
                   SaaS
                 </span>
               </div>
               <span className="text-[11px] text-neutral-400 font-medium hidden sm:inline-block">
-                Software Integral para Restaurantes
+                Software & Catálogo Digital para Comercios
               </span>
             </div>
           </Link>

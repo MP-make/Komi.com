@@ -30,12 +30,12 @@ export default function SaasCta() {
                 href="/register"
                 className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-neutral-950 hover:bg-neutral-900 text-white font-bold text-base shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                <span>Crear mi Restaurante Gratis</span>
+                <span>Crear mi Negocio Gratis con Komi</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
 
               <a
-                href="https://wa.me/51987654321?text=Hola,%20deseo%20una%20demostraci%C3%B3n%20de%20RestoOS%20SaaS%20para%20mi%20restaurante"
+                href="https://wa.me/51987654321?text=Hola,%20deseo%20una%20demostraci%C3%B3n%20de%20Komi%20SaaS%20para%20mi%20negocio"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-7 py-4 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-base border border-white/30 backdrop-blur-sm transition-all"

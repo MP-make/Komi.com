@@ -104,7 +104,7 @@ export default function SaasCalculator() {
                 </div>
 
                 <div className="flex justify-between items-center text-sm border-b border-neutral-800 pb-3">
-                  <span className="text-neutral-400">Costo mensual RestoOS SaaS:</span>
+                  <span className="text-neutral-400">Costo mensual Komi SaaS:</span>
                   <span className="font-mono font-bold text-white text-base">
                     S/ {saasCost} / mes fijo
                   </span>

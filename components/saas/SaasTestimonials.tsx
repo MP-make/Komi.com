@@ -6,7 +6,7 @@ export default function SaasTestimonials() {
     {
       name: "Carlos Mendoza",
       role: "Dueño de Restobar Fuego Urbano (Lima)",
-      quote: "Antes de RestoOS, un viernes por la noche era un caos: comandas mojadas en la cocina, platos devueltos y mozos corriendo con libretas. Ahora los pedidos entran directos a la pantalla de cocina y la rotación de mesas aumentó un 40%.",
+      quote: "Antes de Komi, un viernes por la noche era un caos: comandas mojadas en la cocina, platos devueltos y mozos corriendo con libretas. Ahora los pedidos entran directos a la pantalla de cocina y la rotación de mesas aumentó un 40%.",
       stars: 5,
       metric: "+40% rotación de mesas"
     },

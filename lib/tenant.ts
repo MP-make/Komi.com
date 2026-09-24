@@ -4,12 +4,12 @@ import { RestaurantTenant } from '@/types';
 // Tenant por defecto para demostración y retrocompatibilidad
 export const DEFAULT_TENANT: RestaurantTenant = {
   id: '00000000-0000-0000-0000-000000000001',
-  name: '¡Qué Bravazo! Restobar',
-  slug: 'quebravazo',
-  phone: '987654321',
-  email: 'contacto@quebravazo.pe',
+  name: 'Komi Market & Restobar',
+  slug: 'demo',
+  phone: '51987654321',
+  email: 'contacto@komi.app',
   address: 'Av. Las Brisas 450, Lima',
-  logo_url: '/icon.jpg',
+  logo_url: '',
   primary_color: '#ea580c',
   plan: 'pro',
   status: 'active',
@@ -69,5 +69,6 @@ export const DEMO_TENANTS: RestaurantTenant[] = [
 ];
 
 export function getTenantBySlug(slug: string): RestaurantTenant {
+  if (slug === 'demo' || slug === 'quebravazo') return DEFAULT_TENANT;
   return DEMO_TENANTS.find((t) => t.slug === slug) || DEFAULT_TENANT;
 }

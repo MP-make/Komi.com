@@ -14,8 +14,8 @@ const fontHeading = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "RestoOS SaaS — Sistema Operativo Todo-en-Uno para Restaurantes y Bares",
-  description: "Plataforma SaaS en la nube para restaurantes. Comandero móvil para meseros, pantalla KDS de cocina, carta QR interactiva y control total de ventas y caja con 0% de comisiones.",
+  title: "Komi — Catálogo Digital, Tienda Online & POS en Tiempo Real",
+  description: "Plataforma SaaS para comercios y restaurantes. Catálogo web interactivo con pedidos directos a WhatsApp, punto de venta (POS) sincronizado, comandero móvil y control total de inventario sin comisiones.",
   icons: {
     icon: [
       { url: "/favicon.webp", sizes: "any", type: "image/webp" },
