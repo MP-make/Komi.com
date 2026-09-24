@@ -170,10 +170,10 @@ export default function CheckoutPage() {
     // Construir mensaje para WhatsApp
     let message = `🍕 *NUEVO PEDIDO - ¡Qué Bravazo!*\n\n`;
     message += `👤 *Cliente:* ${customerName}\n`;
-    message += `📱 *Teléfono:* +51 ${phone}\n`;
+    message += `*Teléfono:* +51 ${phone}\n`;
     message += `📧 *Correo:* ${email || 'No proporcionado'}\n`;
     message += `🏠 *Dirección:* ${isJardines ? jardinesAddress : address}\n`;
-    message += `💳 *Método de Pago:* ${paymentMethod.toUpperCase()}\n`;
+    message += ` *Método de Pago:* ${paymentMethod.toUpperCase()}\n`;
     message += `\n📋 *PRODUCTOS:*\n`;
     items.forEach((item, index) => {
       message += `${index + 1}. ${item.title} x${item.quantity} - S/ ${(item.price * item.quantity).toFixed(2)}\n`;
@@ -183,7 +183,7 @@ export default function CheckoutPage() {
     });
     message += `\n💰 *SUBTOTAL:* S/ ${subtotal.toFixed(2)}\n`;
     message += `🚚 *DELIVERY:* S/ ${delivery.toFixed(2)}\n`;
-    message += `💵 *TOTAL:* S/ ${total.toFixed(2)}\n`;
+    message += ` *TOTAL:* S/ ${total.toFixed(2)}\n`;
     if (notes) {
       message += `\n📝 *NOTAS ADICIONALES:* ${notes}\n`;
     }

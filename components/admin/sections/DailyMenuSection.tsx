@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Save, Loader2 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
 
-export default function AdminDailyMenu() {
+export default function AdminDailyMenu({ hideHeader = false }: { hideHeader?: boolean }) {
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,16 +50,18 @@ export default function AdminDailyMenu() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Menú del Día</h1>
-          <p className="text-stone-400 text-sm mt-0.5">
-            Imagen que aparece como ventana flotante en la página de inicio
-          </p>
+      {!hideHeader && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Menú del Día</h1>
+            <p className="text-stone-400 text-sm mt-0.5">
+              Imagen que aparece como ventana flotante en la página de inicio
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 max-w-xl">
+      <div className={hideHeader ? "" : "bg-stone-900 border border-stone-800 rounded-2xl p-6 max-w-xl"}>
         <div className="space-y-4">
           <ImagePicker
             value={imageUrl}

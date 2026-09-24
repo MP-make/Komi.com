@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export default function DailyMenuRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/admin/menu?tab=daily");
+    router.replace("/admin/menu?tab=menu");
   }, [router]);
   return null;
 }

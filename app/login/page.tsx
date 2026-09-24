@@ -41,6 +41,7 @@ export default function LoginPage() {
       if (data.user.role === 'staff') router.push('/waiter');
       else if (data.user.role === 'chef') router.push('/chef');
       else if (data.user.role === 'owner') router.push('/owner');
+      else if (data.user.role === 'cashier') router.push('/cashier');
       else router.push('/admin');
     } catch {
       setError("Error de conexión. Verifica tu internet.");

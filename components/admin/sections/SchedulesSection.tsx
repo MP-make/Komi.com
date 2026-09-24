@@ -35,7 +35,7 @@ const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 const emptyForm: ScheduleForm = { menu_type: "criollo", label: "", days_of_week: [...ALL_DAYS], apply_all_days: true, start_time: "12:00", end_time: "18:00", is_active: true };
 
-export default function AdminSchedules() {
+export default function AdminSchedules({ hideHeader = false }: { hideHeader?: boolean }) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -174,12 +174,16 @@ export default function AdminSchedules() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${hideHeader ? "mb-4" : "mb-6"}`}>
         <div>
-          <h1 className="text-2xl font-bold text-white">Horarios de Menu</h1>
-          <p className="text-stone-400 text-sm mt-0.5">Controla que menu se muestra segun la hora y el dia</p>
+          {!hideHeader && (
+            <>
+              <h1 className="text-2xl font-bold text-white">Horarios de Menu</h1>
+              <p className="text-stone-400 text-sm mt-0.5">Controla que menu se muestra segun la hora y el dia</p>
+            </>
+          )}
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-xl transition-colors text-sm self-start sm:self-auto">
+        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-xl transition-colors text-sm self-start sm:self-auto cursor-pointer">
           <Plus size={16} />
           Nuevo horario
         </button>

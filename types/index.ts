@@ -5,17 +5,17 @@ export type AppMode = 'delivery' | 'waiter' | 'menu';
 
 export interface Product {
   id: string;
-  sku?: string;        // SKU de Ventify (ej: 'Hamb-005', 'Fri-001')
-  title: string;       // Mapeado desde 'name' de Ventify
+  sku?: string;        // Código SKU del producto (ej: 'HAMB-005')
+  title: string;       // Nombre del plato o producto
   price: number;
-  image: string;       // Mapeado desde 'imageUrl'
+  image: string;       // URL de la imagen del producto
   category: string;
-  category_slug?: string; // Slug de la categoría local mapeada (desde product_mappings)
+  category_slug?: string; // Slug de la categoría local mapeada
   description?: string;
   stock: number;
-  featured?: boolean;  // Producto destacado en landing
-  isMenuDelDia?: boolean; // Si es parte del menú del día (configurado en Ventify)
-  minPrice?: number;   // Precio mínimo permitido para descuentos (desde Ventify)
+  featured?: boolean;  // Producto destacado
+  isMenuDelDia?: boolean; // Si es parte del menú del día
+  minPrice?: number;   // Precio mínimo permitido para descuentos
   is_active?: boolean; // Si el producto está activo en el panel admin
 }
 
@@ -24,7 +24,7 @@ export interface CartItem extends Product {
   notes?: string;      // Ej: "Sin mayonesa" (Importante para meseros/delivery)
 }
 
-// Estructura para enviar el pedido a Ventify
+// Estructura para registrar el pedido
 export interface OrderPayload {
   customer: {
     name: string;
@@ -45,3 +45,49 @@ export interface OrderPayload {
   }[];
   total: number;
 }
+
+// Modelos Multi-Tenant SaaS
+export type SaaSPlan = 'starter' | 'pro' | 'enterprise';
+
+export interface RestaurantTenant {
+  id: string;
+  name: string;
+  slug: string;
+  domain?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  logo_url?: string;
+  banner_url?: string;
+  primary_color?: string;
+  plan: SaaSPlan;
+  status: 'active' | 'suspended' | 'trial';
+  trial_ends_at?: string;
+  settings?: {
+    allow_delivery?: boolean;
+    allow_dine_in?: boolean;
+    currency?: string;
+    currency_symbol?: string;
+    tax_rate?: number;
+    yape_number?: string;
+    yape_holder?: string;
+    tables_count?: number;
+  };
+  created_at?: string;
+}
+
+export interface RestaurantTable {
+  id: string;
+  number: string;
+  label: string;
+  capacity: number;
+  zone: string;
+  is_active: boolean;
+}
+
+export interface TablesConfig {
+  total_tables: number;
+  default_capacity: number;
+  tables: RestaurantTable[];
+}
+

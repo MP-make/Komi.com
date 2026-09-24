@@ -1,6 +1,6 @@
 "use client";
 import { useCartStore } from '@/lib/stores/cart';
-import { createOrder } from '@/lib/api/ventify';
+import { createOrder } from '@/lib/api/products';
 import { Trash2, Plus, Minus, Send, ShoppingCart, Receipt, Clock } from 'lucide-react';
 import { useState } from 'react';
 

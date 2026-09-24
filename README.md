@@ -51,7 +51,7 @@ NEXT_PUBLIC_VENTIFY_ACCOUNT_ID=tu_account_id
 NEXT_PUBLIC_VENTIFY_API_KEY=tu_api_key
 ```
 
-## 📱 Características
+## Características
 
 - ✅ Sistema de meseros profesional y responsivo
 - ✅ Selección visual de mesas (20 mesas disponibles)

@@ -19,7 +19,7 @@ export default function ContactoSection() {
 
     let msg = `👋 *Nuevo mensaje - ¡Qué Bravazo!*\n\n`;
     msg += `👤 *Nombre:* ${formData.name}\n`;
-    msg += `📱 *Teléfono:* ${formData.phone}\n`;
+    msg += `*Teléfono:* ${formData.phone}\n`;
     if (formData.subject) msg += `📌 *Asunto:* ${formData.subject}\n`;
     msg += `\n💬 *Mensaje:*\n${formData.message}\n`;
     msg += `\n✅ *Enviado desde la web*`;

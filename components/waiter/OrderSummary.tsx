@@ -1,6 +1,6 @@
 "use client";
 import { useCartStore } from '@/lib/stores/cart';
-import { createOrder } from '@/lib/api/ventify';
+import { createOrder } from '@/lib/api/products';
 
 interface OrderSummaryProps {
   tableId: string;

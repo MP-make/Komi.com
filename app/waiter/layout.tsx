@@ -1,22 +1,45 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuthStore } from "@/lib/stores/auth";
-import { ShoppingBag, ClipboardList, User, LogOut } from "lucide-react";
-
-const NAV_ITEMS = [
-  { href: "/waiter", label: "Pedidos", icon: ShoppingBag },
-  { href: "/waiter/mis-pedidos", label: "Mis Pedidos", icon: ClipboardList },
-  { href: "/waiter/perfil", label: "Perfil", icon: User },
-];
+import {
+  ShoppingBag,
+  ClipboardList,
+  User,
+  LogOut,
+  ExternalLink,
+  Menu,
+  X,
+  Utensils
+} from "lucide-react";
 
 export default function WaiterLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoggedIn, isHydrated, logout } = useAuthStore();
+
+  // Estado de colapso de la barra lateral (Mini-rail vs Expandido)
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Móvil drawer
+
+  // Recordar preferencia de colapso en localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("waiter_sidebar_collapsed");
+    if (saved !== null) {
+      setIsCollapsed(saved === "true");
+    }
+  }, []);
+
+  const toggleCollapsed = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("waiter_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -24,7 +47,7 @@ export default function WaiterLayout({ children }: { children: React.ReactNode }
       router.replace("/login");
       return;
     }
-    if (user.role !== "staff" && user.role !== "admin") {
+    if (user.role !== "staff" && user.role !== "admin" && user.role !== "owner") {
       router.replace("/");
       return;
     }
@@ -33,111 +56,291 @@ export default function WaiterLayout({ children }: { children: React.ReactNode }
   if (!isHydrated) {
     return (
       <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-stone-400 text-sm">Cargando panel mesero...</p>
+        </div>
       </div>
     );
   }
 
-  if (user?.role !== "staff" && user?.role !== "admin") return null;
+  if (user?.role !== "staff" && user?.role !== "admin" && user?.role !== "owner") return null;
 
-  const isActiveRoute = (href: string) => pathname === href;
+  const isPosActive = pathname === "/waiter";
+  const isOrdersActive = pathname.startsWith("/waiter/mis-pedidos");
+  const isPerfilActive = pathname.startsWith("/waiter/perfil");
+
+  const getPageTitle = () => {
+    if (isPosActive) return "Tomar Pedido (Mesas)";
+    if (isOrdersActive) return "Mis Pedidos";
+    if (isPerfilActive) return "Mi Perfil";
+    return "Panel Mesero";
+  };
+
+  const getRoleLabel = () => {
+    if (user?.role === "owner") return "Dueño";
+    if (user?.role === "cashier") return "Cajero";
+    if (user?.role === "admin") return "Administrador";
+    return "Mesero";
+  };
 
   return (
-    // w-full + overflow-x-hidden a nivel raíz: contiene cualquier desborde
-    // horizontal que pueda producirse más abajo en el árbol.
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-white flex">
-      {/* Desktop sidebar */}
-      <aside className="hidden xl:flex flex-col w-56 flex-shrink-0 bg-stone-900/95 border-r border-stone-800/80 shadow-[4px_0_20px_rgba(0,0,0,0.3)]">
-        <div className="h-14 flex items-center gap-3 px-4 border-b border-stone-800/80">
-          <div className="w-8 h-8 rounded-lg overflow-hidden border border-amber-500/30 flex-shrink-0 shadow-lg shadow-amber-500/10">
-            <div className="w-full h-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black text-xs font-bold">
-              {user?.name?.charAt(0) || "M"}
+    <div className="fixed inset-0 h-screen h-[100dvh] w-screen bg-stone-950 flex overflow-hidden select-none z-30">
+      {/* Overlay Móvil */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* SIDEBAR FIJO (Expandible w-64 / Mini-Rail w-20) */}
+      <aside
+        className={`
+          flex flex-col bg-stone-900 border-r border-stone-800 flex-shrink-0 h-screen z-40 transition-all duration-300 ease-in-out
+          max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:w-64 max-md:shadow-2xl
+          ${sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
+          md:relative md:translate-x-0
+          ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+        `}
+      >
+        {/* Cabecera Sidebar (Logo + Nombre + Botón Colapsar / Expandir) */}
+        <div className="p-4 border-b border-stone-800/80 flex-shrink-0">
+          {!isCollapsed ? (
+            <div className="space-y-3">
+              {/* Fila 1: Logo + Nombre */}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl overflow-hidden border border-stone-700 flex-shrink-0 bg-stone-950 flex items-center justify-center shadow-md">
+                  <Image
+                    src="/logo_que_bravazo.png"
+                    alt="Logo"
+                    width={36}
+                    height={36}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-black tracking-tight text-white uppercase truncate">
+                    ¡QUÉ BRAVAZO!
+                  </span>
+                  <span className="text-[10px] text-stone-400 font-medium">Panel Meseros</span>
+                </div>
+              </div>
+
+              {/* Fila 2: Indicador En línea + Botón Colapsar */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[11px] text-emerald-400 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  En línea
+                </span>
+
+                <button
+                  type="button"
+                  onClick={toggleCollapsed}
+                  title="Colapsar menú lateral"
+                  className="p-1.5 rounded-xl border border-stone-700/80 hover:bg-stone-800 text-stone-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="18" height="18" x="3" y="3" rx="3" />
+                    <path d="M9 3v18" />
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-col leading-tight min-w-0">
-            <p className="text-xs font-black text-gradient-amber leading-tight">¡Qué Bravazo!</p>
-            <p className="text-[11px] text-stone-400 font-medium truncate">Mesero: {user?.name}</p>
-          </div>
-        </div>
-        <nav className="flex-1 py-3 px-3 space-y-0.5">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = isActiveRoute(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  active
-                    ? "bg-gradient-to-r from-amber-500/10 to-transparent text-amber-400 border border-amber-500/15 shadow-sm"
-                    : "text-stone-400 hover:text-stone-200 hover:bg-stone-800/80 border border-transparent"
-                }`}
+          ) : (
+            /* Modo Colapsado (Mini-Rail) */
+            <div className="flex flex-col items-center gap-3 py-1">
+              <div className="w-9 h-9 rounded-xl overflow-hidden border border-stone-700 flex-shrink-0 bg-stone-950 flex items-center justify-center shadow-md">
+                <Image
+                  src="/logo_que_bravazo.png"
+                  alt="Logo"
+                  width={36}
+                  height={36}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                title="Expandir menú lateral"
+                className="p-2 rounded-xl border-2 border-amber-500/70 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all cursor-pointer shadow-sm shadow-amber-500/20"
               >
-                {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-amber-500 rounded-full shadow-sm shadow-amber-500/50" />}
-                <Icon size={18} className={active ? "text-amber-500" : "text-stone-500 group-hover:text-stone-300 transition-colors"} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="18" x="3" y="3" rx="3" />
+                  <path d="M9 3v18" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Navegación Principal del Mesero */}
+        <nav className={`flex-1 py-3 space-y-1.5 overflow-y-auto overflow-x-hidden no-scrollbar ${isCollapsed ? "px-2 flex flex-col items-center" : "px-3"}`}>
+          {/* 1. Tomar Pedido (Mesas) */}
+          <Link
+            href="/waiter"
+            onClick={() => setSidebarOpen(false)}
+            title="Tomar Pedido"
+            className={`flex items-center gap-3 rounded-2xl text-sm font-semibold transition-all group ${
+              isPosActive
+                ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/30"
+                : "text-stone-400 hover:text-white hover:bg-stone-800/50"
+            } ${isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2.5 w-full"}`}
+          >
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isPosActive ? "text-amber-400" : "text-stone-400 group-hover:text-amber-400"}`}>
+              <Utensils size={19} />
+            </div>
+            {!isCollapsed && <span>Tomar Pedido</span>}
+          </Link>
+
+          {/* 2. Mis Pedidos */}
+          <Link
+            href="/waiter/mis-pedidos"
+            onClick={() => setSidebarOpen(false)}
+            title="Mis Pedidos"
+            className={`flex items-center gap-3 rounded-2xl text-sm font-semibold transition-all group ${
+              isOrdersActive
+                ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/30"
+                : "text-stone-400 hover:text-white hover:bg-stone-800/50"
+            } ${isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2.5 w-full"}`}
+          >
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isOrdersActive ? "text-amber-400" : "text-stone-400 group-hover:text-white"}`}>
+              <ClipboardList size={19} />
+            </div>
+            {!isCollapsed && <span>Mis Pedidos</span>}
+          </Link>
+
+          {/* 3. Mi Perfil */}
+          <Link
+            href="/waiter/perfil"
+            onClick={() => setSidebarOpen(false)}
+            title="Mi Perfil"
+            className={`flex items-center gap-3 rounded-2xl text-sm font-semibold transition-all group ${
+              isPerfilActive
+                ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/30"
+                : "text-stone-400 hover:text-white hover:bg-stone-800/50"
+            } ${isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2.5 w-full"}`}
+          >
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isPerfilActive ? "text-amber-400" : "text-stone-400 group-hover:text-white"}`}>
+              <User size={19} />
+            </div>
+            {!isCollapsed && <span>Mi Perfil</span>}
+          </Link>
+
+          {/* Enlace rápido: Ver Carta Online */}
+          <div className="pt-2">
+            <Link
+              href="/delivery"
+              target="_blank"
+              title="Ver Carta Online (Pestaña nueva)"
+              className={`flex items-center gap-3 rounded-2xl text-xs font-semibold text-stone-400 hover:text-amber-400 hover:bg-stone-800/50 transition-all ${
+                isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2 w-full"
+              }`}
+            >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-stone-400 hover:text-amber-400">
+                <ExternalLink size={17} />
+              </div>
+              {!isCollapsed && <span>Ver Carta Online</span>}
+            </Link>
+          </div>
         </nav>
 
-        <div className="p-4 border-t border-stone-800/80 flex-shrink-0">
-          <button
-            onClick={() => { logout(); router.push("/login"); }}
-            className="flex items-center gap-2 px-3 py-2 w-full text-stone-400 hover:text-rose-400 hover:bg-rose-500/5 rounded-xl text-sm transition-all duration-200 group"
+        {/* Sección Inferior del Sidebar (Perfil de Usuario y Logout) */}
+        <div className={`border-t border-stone-800/80 flex-shrink-0 bg-stone-950/70 ${isCollapsed ? "p-2 flex flex-col items-center gap-2" : "p-3.5 space-y-2.5"}`}>
+          {/* Tarjeta de Usuario */}
+          <div
+            className={`rounded-2xl bg-stone-900/90 border border-stone-800 flex items-center gap-2.5 ${
+              isCollapsed ? "w-11 h-11 justify-center p-0" : "p-2.5 w-full"
+            }`}
           >
-            <LogOut size={16} className="group-hover:scale-110 transition-transform" />
-            <span>Cerrar sesión</span>
-          </button>
+            <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 font-bold text-xs">
+              {user?.name?.charAt(0) || user?.email?.charAt(0) || "M"}
+            </div>
+
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-white font-semibold truncate leading-tight">
+                  {user?.name || user?.email}
+                </p>
+                <p className="text-[10px] text-stone-400 font-medium truncate mt-0.5">
+                  {getRoleLabel()}
+                </p>
+              </div>
+            )}
+
+            {!isCollapsed && (
+              <button
+                type="button"
+                onClick={() => { logout(); router.push("/login"); }}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                title="Cerrar sesión"
+              >
+                <LogOut size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Botón de logout en modo colapsado */}
+          {isCollapsed && (
+            <button
+              type="button"
+              onClick={() => { logout(); router.push("/login"); }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+              title="Cerrar sesión"
+            >
+              <LogOut size={16} />
+            </button>
+          )}
         </div>
       </aside>
 
-      {/* Main content */}
-      {/* min-w-0 es la corrección clave: sin esto, un flex item se niega a
-          encogerse por debajo del ancho intrínseco de su contenido (p.ej. el
-          nav de categorías con overflow-x-auto dentro de la página hija),
-          y termina empujando todo el documento más ancho que el viewport. */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        {/* Mobile top bar */}
-        <header className="xl:hidden flex items-center justify-between gap-2 px-3 h-12 bg-stone-900/95 backdrop-blur-sm border-b border-stone-800 flex-shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-7 h-7 rounded-full overflow-hidden border border-amber-500/30 flex-shrink-0">
-              <Image src="/logo_que_bravazo.png" alt="" width={28} height={28} className="object-cover" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-black text-amber-400 leading-tight truncate">¡Qué Bravazo!</p>
-              <p className="text-[9px] text-stone-500 truncate">Mesero: {user?.name}</p>
-            </div>
-          </div>
-          <button onClick={() => { logout(); router.push("/login"); }} className="p-1.5 text-stone-400 hover:text-rose-400 flex-shrink-0">
-            <LogOut size={16} />
+      {/* Contenedor Principal */}
+      <div className="flex-1 flex flex-col h-screen h-[100dvh] max-w-full overflow-hidden">
+        {/* Barra Superior Fija */}
+        <header className="h-14 lg:h-16 flex items-center gap-3 px-4 lg:px-6 border-b border-stone-800/80 bg-stone-950/80 backdrop-blur-md flex-shrink-0 shadow-sm z-30">
+          {/* Botón Hamburger solo en móvil */}
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 -ml-1 rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-800 transition-colors md:hidden cursor-pointer"
+            aria-label={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
+          >
+            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
+
+          {/* Título de la sección actual */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-white tracking-tight">
+              {getPageTitle()}
+            </span>
+          </div>
+
+          <div className="flex-1" />
+
+          {/* Perfil & Logout Header */}
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline text-xs text-stone-400 font-medium">
+              {user?.name || user?.email}
+            </span>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black text-xs font-bold shadow-md shadow-amber-500/20">
+              {user?.name?.charAt(0) || user?.email?.charAt(0) || "M"}
+            </div>
+            <button
+              onClick={() => { logout(); router.push("/login"); }}
+              className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+              title="Cerrar sesión"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </header>
 
-        {children}
+        {/* ÚNICA ÁREA DE CONTENIDO */}
+        <main className={`flex-1 relative ${isPosActive ? "overflow-hidden p-0" : "overflow-y-auto p-4 sm:p-6 lg:p-8 pb-20 md:pb-8"}`}>
+          {children}
+        </main>
       </div>
-
-      {/* Mobile bottom nav */}
-      <nav className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-stone-900 border-t border-stone-800 pb-safe">
-        <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = isActiveRoute(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1 h-full transition-colors ${
-                  active ? "text-amber-400" : "text-stone-500 hover:text-stone-300"
-                }`}
-              >
-                <Icon size={18} />
-                <span className="text-[9px] font-medium leading-tight text-center">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
     </div>
   );
 }

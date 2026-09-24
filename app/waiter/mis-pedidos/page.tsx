@@ -119,7 +119,10 @@ export default function MisPedidosPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/waiter/orders?waiter_id=${user.uid}`);
+      const url = (user.role === 'admin' || user.role === 'owner')
+        ? '/api/waiter/orders'
+        : `/api/waiter/orders?waiter_id=${user.uid}`;
+      const res = await fetch(url);
       const json = await res.json();
       setOrders(json.data || []);
     } catch {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Product } from '@/types';
-import { fetchProducts } from '@/lib/api/ventify';
+import { fetchProducts } from '@/lib/api/products';
 
 interface ProductsState {
   products: Product[];

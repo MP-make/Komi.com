@@ -26,7 +26,7 @@ const galeriaImagenes = [
   },
   {
     id: 4,
-    src: "/fondo_de_platillos.jpg",
+    src: "/Fondo restaurante.png",
     alt: "Variedad de platillos",
     titulo: "Nuestros Platillos",
   },

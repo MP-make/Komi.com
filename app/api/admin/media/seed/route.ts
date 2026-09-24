@@ -7,7 +7,7 @@ const DEFAULT_MEDIA = [
   { type: 'image', url: '/menú.webp', alt_text: 'Fondo menú', section: 'background', display_order: 0, is_active: true },
   { type: 'image', url: '/Fondo restaurante.png', alt_text: 'Fondo restaurante', section: 'background', display_order: 1, is_active: true },
   { type: 'image', url: '/Fondo frituras.png', alt_text: 'Fondo frituras', section: 'background', display_order: 2, is_active: true },
-  { type: 'image', url: '/fondo_de_platillos.jpg', alt_text: 'Fondo platillos', section: 'background', display_order: 3, is_active: true },
+  { type: 'image', url: '/Fondo restaurante.png', alt_text: 'Fondo platillos', section: 'background', display_order: 3, is_active: true },
   { type: 'image', url: '/menu del dia.jpeg', alt_text: 'Menú del día', section: 'gallery', display_order: 0, is_active: true },
   { type: 'image', url: '/personaje presentando_sinfondo.png', alt_text: 'Personaje promocional', section: 'promo', display_order: 0, is_active: true },
 ];

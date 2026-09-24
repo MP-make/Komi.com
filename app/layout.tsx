@@ -14,8 +14,8 @@ const fontHeading = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "¡Qué Bravazo! Restobar",
-  description: "Restobar de comida rápida peruana — Broaster, hamburguesas, alitas BBQ, cervezas y más. Delivery en Lima.",
+  title: "RestoOS SaaS — Sistema Operativo Todo-en-Uno para Restaurantes y Bares",
+  description: "Plataforma SaaS en la nube para restaurantes. Comandero móvil para meseros, pantalla KDS de cocina, carta QR interactiva y control total de ventas y caja con 0% de comisiones.",
   icons: {
     icon: [
       { url: "/favicon.webp", sizes: "any", type: "image/webp" },
@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" data-scroll-behavior="smooth">
       <body
         className={`${fontSans.variable} ${fontHeading.variable} antialiased bg-gray-50`}
       >

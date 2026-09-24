@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/stores/cart';
 import { Product } from '@/types';
 import { useState, useEffect } from 'react';
-import { fetchProducts } from '@/lib/api/ventify';
+import { fetchProducts } from '@/lib/api/products';
 
 interface CartDrawerProps {
   visible: boolean;

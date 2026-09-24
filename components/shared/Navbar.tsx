@@ -8,7 +8,7 @@ import { useCartStore } from '@/lib/stores/cart';
 import { useUIStore } from '@/lib/stores/ui';
 import { useToastStore } from '@/lib/stores/toast';
 import { usePathname, useRouter } from 'next/navigation';
-import { fetchProducts } from '@/lib/api/ventify';
+import { fetchProducts } from '@/lib/api/products';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);

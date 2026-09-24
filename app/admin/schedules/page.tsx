@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export default function SchedulesRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/admin/menu?tab=schedules");
+    router.replace("/admin/menu?tab=menu");
   }, [router]);
   return null;
 }

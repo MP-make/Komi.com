@@ -8,7 +8,7 @@ export interface UserProfile {
   name: string;
   phone?: string;
   dni?: string;
-  role: 'client' | 'staff' | 'admin' | 'chef' | 'owner';
+  role: 'client' | 'staff' | 'admin' | 'chef' | 'owner' | 'cashier';
 }
 
 interface AuthState {

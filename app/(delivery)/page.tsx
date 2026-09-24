@@ -1,46 +1,47 @@
 "use client";
-import { useMemo } from 'react';
-import { useProductStore } from '@/lib/stores/products';
-import { useUIStore } from '@/lib/stores/ui';
-import LandingHeader from '@/components/landing/LandingHeader';
-import HeroSection from '@/components/landing/HeroSection';
-import FuegoSection from '@/components/landing/FuegoSection';
-import CommunitySection from '@/components/landing/CommunitySection';
-import ContactBlock from '@/components/landing/ContactBlock';
-import { CartDrawer } from '@/components/shared/CartDrawer';
-import DailyMenuModal from '@/components/shared/DailyMenuModal';
+import SaasHeader from "@/components/saas/SaasHeader";
+import SaasHero from "@/components/saas/SaasHero";
+import SaasLiveDemos from "@/components/saas/SaasLiveDemos";
+import SaasFeatures from "@/components/saas/SaasFeatures";
+import SaasCalculator from "@/components/saas/SaasCalculator";
+import SaasPricing from "@/components/saas/SaasPricing";
+import SaasTestimonials from "@/components/saas/SaasTestimonials";
+import SaasFaq from "@/components/saas/SaasFaq";
+import SaasCta from "@/components/saas/SaasCta";
+import SaasFooter from "@/components/saas/SaasFooter";
 
-export default function DeliveryPage() {
-  const products = useProductStore((s) => s.products);
-  const { isCartOpen, setIsCartOpen } = useUIStore();
-
-  const bebidas = useMemo(() => products.filter(p => {
-    const cat = (p.category || '').toLowerCase();
-    return cat.includes('bebida') || cat.includes('gaseosa') || cat.includes('cerveza') || cat.includes('trago') || cat.includes('licor');
-  }), [products]);
-
+export default function SaasLandingPage() {
   return (
-    <div className="min-h-screen relative bg-black">
-      {/* Header premium fijo */}
-      <LandingHeader />
+    <div className="min-h-screen bg-neutral-950 text-white selection:bg-orange-500 selection:text-white">
+      {/* Header SaaS con accesos directos y navegación */}
+      <SaasHeader />
 
-      {/* Hero — full screen con video + CTA */}
-      <HeroSection />
+      {/* Hero Section con simulador interactivo de módulos */}
+      <SaasHero />
 
-      {/* El bloque "bravazo" — banda naranja + 2x2 legendarias */}
-      <FuegoSection products={products} />
+      {/* Demos en Vivo interactivas (Mesero, Cocina KDS, Carta QR, Dueño) */}
+      <SaasLiveDemos />
 
-      {/* Muro de la comunidad — Instagram + Reels */}
-      <CommunitySection />
+      {/* Módulos y Ventajas Competitivas */}
+      <SaasFeatures />
 
-      {/* Contacto — info + formulario */}
-      <ContactBlock />
+      {/* Calculadora Interactiva de Ahorro frente a Apps de Delivery */}
+      <SaasCalculator />
 
-      {/* Cart Drawer */}
-      <CartDrawer visible={isCartOpen} onClose={() => setIsCartOpen(false)} bebidas={bebidas} />
+      {/* Planes y Precios Transparentes */}
+      <SaasPricing />
 
-      {/* Daily Menu Modal */}
-      <DailyMenuModal />
+      {/* Testimonios y Casos de Éxito de Restaurantes */}
+      <SaasTestimonials />
+
+      {/* Preguntas Frecuentes Acordeón */}
+      <SaasFaq />
+
+      {/* Banner de Conversión Pre-Footer */}
+      <SaasCta />
+
+      {/* Footer SaaS */}
+      <SaasFooter />
     </div>
   );
 }

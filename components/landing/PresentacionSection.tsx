@@ -27,7 +27,7 @@ export default function PresentacionSection() {
           {/* Imagen de platillos */}
           <div className="relative w-full lg:w-2/3 h-[350px] md:h-[450px] rounded-3xl overflow-hidden shadow-warm transform lg:-rotate-2 hover:rotate-0 transition-transform duration-500">
             <Image
-              src="/fondo_de_platillos.jpg"
+              src="/Fondo restaurante.png"
               alt="Platillos de ¡Qué Bravazo!"
               fill
               sizes="(max-width: 1024px) 100vw, 66vw"

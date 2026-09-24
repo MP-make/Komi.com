@@ -46,7 +46,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Registrar en Firebase y sincronizar con Ventify
+      // Registrar usuario en base de datos
       const user = await registerClient(
         formData.email,
         formData.password,
