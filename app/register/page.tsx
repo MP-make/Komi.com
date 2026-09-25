@@ -104,16 +104,17 @@ export default function RegisterPage() {
       {/* LADO IZQUIERDO: SHOWCASE SAAS KOMI (Desktop / Tablet horizontal) */}
       {/* ======================================================== */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] relative flex-col justify-between p-10 xl:p-14 overflow-hidden border-r border-stone-800/80">
-        {/* Imagen de Fondo Restaurante / Comercio */}
+        {/* Foto de Restaurante de fondo oficial */}
         <div className="absolute inset-0 bg-stone-950">
           <Image
-            src="/Fondo restaurante.png"
+            src="/login-imagen.png"
             alt="Restaurante Komi"
             fill
-            className="object-cover opacity-35 filter blur-[0.5px]"
+            className="object-cover object-center"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/80 to-stone-950/40" />
+          {/* Degradado para nitidez y contraste premium */}
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950/95 via-stone-950/40 to-stone-950/60" />
         </div>
 
         {/* Encabezado Izquierdo: Branding Komi */}
