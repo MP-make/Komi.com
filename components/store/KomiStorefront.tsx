@@ -44,31 +44,145 @@ interface KomiStorefrontProps {
 export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
   const tenant = useMemo(() => getTenantBySlug(slug), [slug]);
 
-  // Configuración de la tienda (leída desde localStorage o defaults del tenant)
+  // Configuración de la tienda (leída desde localStorage, base de datos o defaults)
   const [storeConfig, setStoreConfig] = useState({
-    name: tenant.name || "Komi Market & Store",
-    slug: tenant.slug || "demo",
-    whatsapp: tenant.phone || "51987654321",
-    address: tenant.address || "Av. Principal 123, Lima",
+    name: tenant.name || "Que Bravazo! Restobar",
+    slug: slug || "quebravazo",
+    whatsapp: tenant.phone || "51946826535",
+    address: tenant.address || "Urb. Los Jardines de San Andrés, Pisco, Ica",
     description: "Catálogo digital interactivo con pedidos directos a WhatsApp y entrega rápida.",
     deliveryCost: 5.0,
     allowDelivery: true,
     allowTakeaway: true,
-    yapeNumber: tenant.phone || "987654321",
-    yapeHolder: "Komi Store",
+    yapeNumber: "946826535",
+    yapeHolder: "Que Bravazo! Restobar",
     isOpen: true,
+    logo_url: "/logo_que_bravazo.png",
+    banner_url: "/Fondo restaurante.png",
   });
 
   useEffect(() => {
+    // 1. Carga inmediata desde localStorage
     try {
-      const saved = localStorage.getItem(`komi_store_settings_${slug}`);
-      if (saved) {
-        setStoreConfig((prev) => ({ ...prev, ...JSON.parse(saved) }));
+      const savedRest = localStorage.getItem("restaurant_settings");
+      const savedStore =
+        localStorage.getItem("komi_store_settings") ||
+        localStorage.getItem(`komi_store_settings_${slug}`);
+      if (savedRest) {
+        const r = JSON.parse(savedRest);
+        setStoreConfig((prev) => ({
+          ...prev,
+          name: r.name || prev.name,
+          address: r.address || prev.address,
+          whatsapp: r.phone || prev.whatsapp,
+          logo_url: r.logo_url || prev.logo_url,
+          banner_url: r.banner_url || prev.banner_url,
+          description: r.description || prev.description,
+        }));
+      }
+      if (savedStore) {
+        setStoreConfig((prev) => ({ ...prev, ...JSON.parse(savedStore) }));
       }
     } catch (e) {
-      console.warn("Could not read store settings", e);
+      console.warn("Could not read local store settings", e);
     }
+
+    // 2. Sincronización en tiempo real desde Supabase (store settings + restaurant settings + media)
+    Promise.all([
+      fetch("/api/admin/settings?key=komi_store_settings").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/admin/settings?key=restaurant_settings").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/admin/media").then((r) => r.json()).catch(() => ({})),
+    ])
+      .then(([storeRes, restRes, mediaRes]) => {
+        let merged: any = {};
+        if (restRes?.value) {
+          const r = restRes.value;
+          merged = {
+            ...merged,
+            name: r.name,
+            address: r.address,
+            whatsapp: r.phone,
+            logo_url: r.logo_url,
+            banner_url: r.banner_url,
+            description: r.description,
+          };
+        }
+        if (storeRes?.value) {
+          merged = { ...merged, ...storeRes.value };
+        }
+
+        // Si aún no hay logo o banner explícito, buscar en la galería multimedia
+        if (mediaRes?.data && Array.isArray(mediaRes.data)) {
+          const mediaLogo = mediaRes.data.find((m: any) => m.section === "logo" && m.is_active);
+          const mediaHero = mediaRes.data.find(
+            (m: any) => (m.section === "hero" || m.section === "background") && m.is_active
+          );
+          if (!merged.logo_url && mediaLogo?.url) {
+            merged.logo_url = mediaLogo.url;
+          }
+          if (!merged.banner_url && mediaHero?.url) {
+            merged.banner_url = mediaHero.url;
+          }
+        }
+
+        setStoreConfig((prev) => {
+          const next = { ...prev, ...merged };
+          try {
+            localStorage.setItem("komi_store_settings", JSON.stringify(next));
+            localStorage.setItem(`komi_store_settings_${slug}`, JSON.stringify(next));
+          } catch {}
+          return next;
+        });
+      })
+      .catch((e) => console.warn("Could not fetch remote store settings", e));
   }, [slug]);
+
+  // Carga de categorías para configuración de cobro de táperes (+S/ 1.00) y KDS
+  const [categoriesMap, setCategoriesMap] = useState<
+    Record<string, { charges_taper: boolean; send_to_kitchen: boolean; name?: string; slug?: string }>
+  >({});
+
+  useEffect(() => {
+    const parseCatData = (data: any[]) => {
+      const map: Record<
+        string,
+        { charges_taper: boolean; send_to_kitchen: boolean; name?: string; slug?: string }
+      > = {};
+      data.forEach((c: any) => {
+        const val = {
+          charges_taper: c.charges_taper !== false,
+          send_to_kitchen: c.send_to_kitchen !== false,
+          name: c.name,
+          slug: c.slug,
+        };
+        if (c.id) map[c.id] = val;
+        if (c.slug) map[c.slug.toLowerCase().trim()] = val;
+        if (c.name) map[c.name.toLowerCase().trim()] = val;
+      });
+      setCategoriesMap(map);
+    };
+
+    fetch("/api/admin/categories")
+      .then((r) => {
+        if (!r.ok) return fetch("/api/categories").then((res2) => res2.json());
+        return r.json();
+      })
+      .then((res) => {
+        if (res?.data && Array.isArray(res.data)) {
+          parseCatData(res.data);
+        }
+      })
+      .catch(() => {
+        fetch("/api/categories")
+          .then((r) => r.json())
+          .then((res) => {
+            if (res?.data && Array.isArray(res.data)) {
+              parseCatData(res.data);
+            }
+          })
+          .catch((e) => console.warn("Could not fetch categories in storefront:", e));
+      });
+  }, []);
 
   // Carga de productos
   const { products, init: initProducts, loading: loadingProducts } = useProductStore();
@@ -105,6 +219,61 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
   const [orderNotes, setOrderNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<{ id: string; total: number } | null>(null);
+
+  // Determina si un producto / ítem de carrito debe cobrar táper (+S/ 1.00)
+  const isProductChargingTaper = (item: {
+    id?: string;
+    category?: string;
+    category_id?: string;
+    category_slug?: string;
+    charges_taper?: boolean;
+    title?: string;
+  }) => {
+    // 1. Si el producto o ítem ya trae charges_taper explícito del backend
+    if (item.charges_taper !== undefined && item.charges_taper !== null) {
+      return Boolean(item.charges_taper);
+    }
+
+    // 2. Buscar producto en el catálogo para asegurar campos de categoría y flags
+    const fullProd = products.find((p) => p.id === item.id);
+    if (fullProd?.charges_taper !== undefined && fullProd?.charges_taper !== null) {
+      return Boolean(fullProd.charges_taper);
+    }
+
+    const catId = item.category_id || fullProd?.category_id || "";
+    const catSlug = (item.category_slug || fullProd?.category_slug || "").toLowerCase().trim();
+    const catName = (item.category || fullProd?.category || "").toLowerCase().trim();
+
+    // 3. Comprobar en el mapa de configuración de categorías por id, slug o nombre
+    const config =
+      (catId && categoriesMap[catId]) ||
+      (catSlug && categoriesMap[catSlug]) ||
+      (catName && categoriesMap[catName]);
+
+    if (config !== undefined && config.charges_taper !== undefined) {
+      return Boolean(config.charges_taper);
+    }
+
+    // 4. Heurística de respaldo: bebidas exentas, platos/comida cobran táper
+    const titleText = (item.title || fullProd?.title || "").toLowerCase();
+    const checkText = `${catSlug} ${catName} ${titleText}`;
+    const isBeverage = /bebida|gaseosa|refresco|cerveza|trago|coctel|jugo|agua|vino/i.test(checkText);
+    return !isBeverage;
+  };
+
+  // Cálculo de Táperes / Envases según categorías
+  const { taperCost, taperItemCount } = useMemo(() => {
+    let count = 0;
+    for (const item of cartItems) {
+      if (isProductChargingTaper(item)) {
+        count += item.quantity;
+      }
+    }
+    return {
+      taperItemCount: count,
+      taperCost: count * 1.0, // S/ 1.00 por táper/envase
+    };
+  }, [cartItems, categoriesMap, products]);
 
   // Extracción de categorías ordenadas
   const categories = useMemo(() => {
@@ -149,7 +318,7 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
   // Totales
   const subtotal = getTotal();
   const deliveryFee = deliveryType === "delivery" ? storeConfig.deliveryCost : 0;
-  const finalTotal = subtotal + deliveryFee;
+  const finalTotal = subtotal + deliveryFee + taperCost;
 
   // Copiar link de tienda
   const handleCopyLink = () => {
@@ -201,12 +370,17 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
           price: i.price,
           quantity: i.quantity,
           notes: i.notes || "",
+          charges_taper: isProductChargingTaper(i),
         })),
         subtotal,
+        takeaway_charge: taperCost,
+        taperCost,
         deliveryCost: deliveryFee,
         total: finalTotal,
         paymentMethod: paymentMethod.toUpperCase(),
         notes: [
+          taperCost > 0 ? `Empaque/Táper: S/ ${taperCost.toFixed(2)} (${taperItemCount} un.)` : "",
+          deliveryType === "delivery" && deliveryFee > 0 ? `Delivery: S/ ${deliveryFee.toFixed(2)}` : "",
           paymentMethod === "efectivo" && cashAmount ? `Paga con: S/ ${cashAmount}` : "",
           orderNotes ? `Notas: ${orderNotes}` : "",
         ]
@@ -233,16 +407,20 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
 
       cartItems.forEach((item) => {
         const itemSub = (item.price * item.quantity).toFixed(2);
-        lines.push(`• *${item.quantity}x* ${item.title} — S/ ${itemSub}`);
+        const hasTaper = isProductChargingTaper(item);
+        lines.push(`• *${item.quantity}x* ${item.title} — S/ ${itemSub}${hasTaper ? ` _(+S/ 1.00 táper c/u)_` : ""}`);
         if (item.notes) {
           lines.push(`  ↳ _Nota: ${item.notes}_`);
         }
       });
 
       lines.push(`────────────────────────`);
-      lines.push(`📦 *Subtotal:* S/ ${subtotal.toFixed(2)}`);
+      lines.push(`📦 *Subtotal productos:* S/ ${subtotal.toFixed(2)}`);
+      if (taperCost > 0) {
+        lines.push(`🥡 *Envases / Táperes (${taperItemCount}):* S/ ${taperCost.toFixed(2)}`);
+      }
       if (deliveryType === "delivery") {
-        lines.push(`🛵 *Envío Delivery:* S/ ${deliveryFee.toFixed(2)}`);
+        lines.push(`🛵 *Envío Delivery:* ${deliveryFee > 0 ? `S/ ${deliveryFee.toFixed(2)}` : "Gratis"}`);
       } else {
         lines.push(`🏪 *Modalidad:* Retiro en Tienda (Gratis)`);
       }
@@ -302,8 +480,21 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           {/* Logo y Nombre Tienda */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-sm shadow shrink-0">
-              K
+            <div className="w-9 h-9 rounded-xl overflow-hidden bg-stone-900 border border-stone-800 flex items-center justify-center shrink-0 relative shadow-sm">
+              {storeConfig.logo_url ? (
+                <Image
+                  src={storeConfig.logo_url}
+                  alt={storeConfig.name}
+                  fill
+                  sizes="36px"
+                  className="object-contain p-0.5"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-sm">
+                  {storeConfig.name?.charAt(0) || "K"}
+                </div>
+              )}
             </div>
             <div className="min-w-0">
               <h2 className="text-sm font-bold text-white tracking-tight truncate leading-tight">
@@ -358,24 +549,40 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
 
       {/* 2. COVER / BRAND HERO HEADER (Estilo Uber Eats / PedidosYa) */}
       <section className="relative bg-gradient-to-b from-stone-900 to-stone-950 border-b border-stone-800/80">
-        {/* Banner de Fondo con Imagen Sutil */}
-        <div className="relative h-32 sm:h-44 w-full overflow-hidden">
+        {/* Banner de Fondo con Imagen de Portada */}
+        <div className="relative h-36 sm:h-52 w-full overflow-hidden bg-stone-900">
           <Image
-            src="/Fondo restaurante.png"
+            src={storeConfig.banner_url || "/Fondo restaurante.png"}
             alt="Cover"
             fill
-            className="object-cover opacity-25 filter blur-[1px]"
+            sizes="100vw"
+            className="object-cover opacity-60"
             priority
+            unoptimized
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/60 to-black/30" />
         </div>
 
         {/* Tarjeta de Información Comercial */}
         <div className="max-w-4xl mx-auto px-4 -mt-14 relative z-10 pb-5">
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
             {/* Avatar / Logo Grande */}
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-3xl sm:text-4xl shadow-2xl border-2 border-amber-500/30 shrink-0 relative">
-              K
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-stone-900 overflow-hidden flex items-center justify-center shadow-2xl border-4 border-stone-950 shrink-0 relative">
+              {storeConfig.logo_url ? (
+                <Image
+                  src={storeConfig.logo_url}
+                  alt={storeConfig.name}
+                  fill
+                  sizes="(max-width: 640px) 80px, 96px"
+                  className="object-contain p-1.5 bg-black/40"
+                  priority
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-3xl sm:text-4xl">
+                  {storeConfig.name?.charAt(0) || "K"}
+                </div>
+              )}
             </div>
 
             {/* Textos y Badges */}
@@ -524,13 +731,38 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
                 </div>
               ))
             ) : (
-              /* Vista filtrada simple */
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-4">
                 {filteredProducts.map((product) => renderProductCard(product))}
               </div>
             )}
           </div>
         )}
+
+        {/* Footer Powered by Komi */}
+        <footer className="mt-16 pt-8 pb-16 border-t border-stone-800 text-center flex flex-col items-center justify-center gap-2">
+          <Link
+            href="/"
+            target="_blank"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-900/90 border border-stone-800 hover:border-stone-700 transition-all shadow-sm group"
+          >
+            <span className="text-[11px] text-stone-400 font-medium">Tecnología provista por</span>
+            <div className="relative w-5 h-5 rounded-full overflow-hidden bg-white shrink-0 border border-amber-500/30">
+              <Image
+                src="/logokomi.png"
+                alt="Komi"
+                fill
+                className="object-cover scale-[1.2] object-center"
+                unoptimized
+              />
+            </div>
+            <span className="text-xs font-black text-white group-hover:text-amber-400 transition-colors">
+              Komi
+            </span>
+          </Link>
+          <p className="text-[10px] text-stone-300">
+            Crea tu propia tienda online y digitaliza tu restaurante
+          </p>
+        </footer>
       </main>
 
       {/* 5. FLOATING BOTTOM CART BAR (Aparece cuando hay productos) */}
@@ -583,15 +815,27 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
                 alt={selectedProductDetail.title}
                 fill
                 className="object-cover"
+                unoptimized
               />
             </div>
 
             <div className="p-5 space-y-4">
               <div>
-                <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
-                  {selectedProductDetail.category || "General"}
-                </span>
-                <h3 className="text-lg font-black text-white mt-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                    {selectedProductDetail.category || "General"}
+                  </span>
+                  {isProductChargingTaper(selectedProductDetail) ? (
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30">
+                      🥡 Envase +S/ 1.00
+                    </span>
+                  ) : (
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-stone-800 text-stone-400 font-medium">
+                      Exento de táper
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg font-black text-white mt-1">
                   {selectedProductDetail.title}
                 </h3>
                 <p className="text-xs text-stone-400 mt-1 leading-relaxed">
@@ -669,17 +913,36 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
                 </div>
 
                 <div className="bg-stone-950/80 rounded-2xl border border-stone-800/80 divide-y divide-stone-800/60 overflow-hidden">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="p-3 flex items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-white truncate">{item.title}</p>
-                        <p className="text-[11px] text-stone-400">
-                          S/ {item.price.toFixed(2)} x {item.quantity} ={" "}
-                          <span className="font-bold text-amber-400">
-                            S/ {(item.price * item.quantity).toFixed(2)}
-                          </span>
-                        </p>
-                      </div>
+                  {cartItems.map((item) => {
+                    const chargesTaper = isProductChargingTaper(item);
+                    return (
+                      <div key={item.id} className="p-3 flex items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-xs font-bold text-white truncate">{item.title}</p>
+                            {chargesTaper ? (
+                              <span
+                                className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-semibold border border-amber-500/30 shrink-0"
+                                title="Este plato incluye envase/táper (+S/ 1.00 c/u)"
+                              >
+                                +Táper S/ 1.00
+                              </span>
+                            ) : (
+                              <span
+                                className="text-[9px] px-1.5 py-0.5 rounded bg-stone-800 text-stone-400 font-medium shrink-0"
+                                title="Exento de táper"
+                              >
+                                Sin táper
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-stone-400 mt-0.5">
+                            S/ {item.price.toFixed(2)} x {item.quantity} ={" "}
+                            <span className="font-bold text-amber-400">
+                              S/ {(item.price * item.quantity).toFixed(2)}
+                            </span>
+                          </p>
+                        </div>
 
                       <div className="flex items-center gap-1 bg-stone-900 rounded-xl p-1 border border-stone-800 shrink-0">
                         <button
@@ -701,7 +964,8 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
                         </button>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               </div>
 
@@ -904,9 +1168,21 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
                   <span>Subtotal productos:</span>
                   <span>S/ {subtotal.toFixed(2)}</span>
                 </div>
+                <div className="flex justify-between text-stone-300">
+                  <span className="flex items-center gap-1">
+                    <span>Envases / Táperes ({taperItemCount}):</span>
+                  </span>
+                  <span className={taperCost > 0 ? "text-amber-400 font-bold" : "text-stone-500"}>
+                    {taperCost > 0 ? `S/ ${taperCost.toFixed(2)}` : "S/ 0.00 (Exento)"}
+                  </span>
+                </div>
                 <div className="flex justify-between text-stone-400">
                   <span>Costo de envío:</span>
-                  <span>{deliveryFee > 0 ? `S/ ${deliveryFee.toFixed(2)}` : "Gratis"}</span>
+                  <span>
+                    {deliveryType === "delivery"
+                      ? (deliveryFee > 0 ? `S/ ${deliveryFee.toFixed(2)}` : "Gratis")
+                      : "Retiro en local (Gratis)"}
+                  </span>
                 </div>
                 <div className="pt-2 border-t border-stone-800 flex justify-between text-sm font-black text-white">
                   <span>TOTAL A PAGAR:</span>
@@ -992,6 +1268,7 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
             className="object-cover group-hover:scale-105 transition-transform duration-300"
+            unoptimized
           />
 
           {/* Badge Top / Destacado */}
@@ -1016,9 +1293,19 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
         {/* Info y Botones */}
         <div className="p-3 flex-1 flex flex-col justify-between">
           <div onClick={() => setSelectedProductDetail(product)} className="cursor-pointer">
-            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider line-clamp-1">
-              {product.category || "General"}
-            </span>
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider line-clamp-1">
+                {product.category || "General"}
+              </span>
+              {isProductChargingTaper(product) && (
+                <span
+                  className="text-[8px] font-bold text-amber-400/90 bg-amber-500/15 px-1 py-0.2 rounded border border-amber-500/25 shrink-0"
+                  title="Requiere táper (+S/ 1.00)"
+                >
+                  +Táper
+                </span>
+              )}
+            </div>
             <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 mt-0.5 leading-snug">
               {product.title}
             </h4>

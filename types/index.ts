@@ -10,7 +10,10 @@ export interface Product {
   price: number;
   image: string;       // URL de la imagen del producto
   category: string;
+  category_id?: string;
   category_slug?: string; // Slug de la categoría local mapeada
+  charges_taper?: boolean; // Si este producto cobra táper/empaque (+S/ 1.00)
+  send_to_kitchen?: boolean; // Si se despacha a la cocina o comanda directa
   description?: string;
   stock: number;
   featured?: boolean;  // Producto destacado

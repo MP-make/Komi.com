@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useAuthStore } from "@/lib/stores/auth";
 import { useProductStore } from "@/lib/stores/products";
 import { Product, RestaurantTable } from "@/types";
+import ProcessPaymentModal from "@/components/pos/ProcessPaymentModal";
 import {
   Utensils,
   ShoppingBag,
@@ -250,6 +251,30 @@ export default function TableOrderSection() {
   const [orderNotes, setOrderNotes] = useState("");
   const [showNotesInput, setShowNotesInput] = useState(false);
 
+  // Mapeo dinámico de categorías (Cobro de táper +S/1 y Enrutamiento KDS)
+  const [categoriesMap, setCategoriesMap] = useState<Record<string, { charges_taper: boolean; send_to_kitchen: boolean }>>({});
+
+  useEffect(() => {
+    fetch("/api/admin/categories")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.data) {
+          const map: Record<string, { charges_taper: boolean; send_to_kitchen: boolean }> = {};
+          res.data.forEach((c: any) => {
+            const val = {
+              charges_taper: c.charges_taper !== false,
+              send_to_kitchen: c.send_to_kitchen !== false,
+            };
+            if (c.id) map[c.id] = val;
+            if (c.slug) map[c.slug] = val;
+            if (c.name) map[c.name.toLowerCase()] = val;
+          });
+          setCategoriesMap(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Catalog Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -469,8 +494,20 @@ export default function TableOrderSection() {
   }, [existingOrder]);
 
   const takeawayCharge = useMemo(() => {
-    return orderType === "llevar" ? 2.0 : 0.0;
-  }, [orderType]);
+    if (orderType !== "llevar") return 0.0;
+    let totalTaper = 0;
+    for (const item of cart) {
+      const catKey = (item.product.category_slug || item.product.category || "").toLowerCase();
+      const catConfig = categoriesMap[catKey];
+      const chargesTaper = catConfig !== undefined
+        ? catConfig.charges_taper
+        : !/bebida|gaseosa|refresco|cerveza|trago|jugo|agua|vino|snack/i.test(catKey);
+      if (chargesTaper) {
+        totalTaper += item.quantity * 1.00;
+      }
+    }
+    return totalTaper;
+  }, [orderType, cart, categoriesMap]);
 
   const totalCalculated = useMemo(() => {
     return existingOrderSubtotal + newCartSubtotal + (cart.length > 0 && !existingOrder ? takeawayCharge : 0);
@@ -617,14 +654,21 @@ export default function TableOrderSection() {
 
         const combinedItems = [
           ...existingOrder.items,
-          ...cart.map((c) => ({
-            product_id: c.product.id,
-            title: c.product.title,
-            price: c.product.price,
-            quantity: c.quantity,
-            notes: c.itemNotes || orderNotes || undefined,
-            skip_kitchen: false,
-          })),
+          ...cart.map((c) => {
+            const catKey = (c.product.category_slug || c.product.category || "").toLowerCase();
+            const catConfig = categoriesMap[catKey];
+            const sendToKitchen = catConfig !== undefined
+              ? catConfig.send_to_kitchen
+              : !/bebida|gaseosa|refresco|cerveza|trago|jugo|agua|vino|snack/i.test(catKey);
+            return {
+              product_id: c.product.id,
+              title: c.product.title,
+              price: c.product.price,
+              quantity: c.quantity,
+              notes: c.itemNotes || orderNotes || undefined,
+              skip_kitchen: !sendToKitchen,
+            };
+          }),
         ];
 
         const updatedSubtotal = existingOrder.subtotal + newCartSubtotal;
@@ -651,14 +695,21 @@ export default function TableOrderSection() {
           waiter_name: user?.name || "Mesero",
           table_number: orderType === "mesa" ? selectedTable : null,
           order_type: orderType,
-          items: cart.map((c) => ({
-            product_id: c.product.id,
-            title: c.product.title,
-            price: c.product.price,
-            quantity: c.quantity,
-            notes: c.itemNotes || orderNotes || undefined,
-            skip_kitchen: false,
-          })),
+          items: cart.map((c) => {
+            const catKey = (c.product.category_slug || c.product.category || "").toLowerCase();
+            const catConfig = categoriesMap[catKey];
+            const sendToKitchen = catConfig !== undefined
+              ? catConfig.send_to_kitchen
+              : !/bebida|gaseosa|refresco|cerveza|trago|jugo|agua|vino|snack/i.test(catKey);
+            return {
+              product_id: c.product.id,
+              title: c.product.title,
+              price: c.product.price,
+              quantity: c.quantity,
+              notes: c.itemNotes || orderNotes || undefined,
+              skip_kitchen: !sendToKitchen,
+            };
+          }),
           subtotal: newCartSubtotal,
           takeaway_charge: takeawayCharge,
           total: totalCalculated,
@@ -704,8 +755,16 @@ export default function TableOrderSection() {
     setIsPaymentModalOpen(true);
   };
 
-  const handleConfirmPayment = async () => {
+  const handleConfirmPayment = async (data?: {
+    paymentMethod: PaymentMethod;
+    docType: DocumentType;
+    cashReceived: number;
+    vuelto: number;
+    referenceCode?: string;
+  }) => {
     setSubmittingPayment(true);
+    const finalMethod = data?.paymentMethod || paymentMethod;
+    const finalDocType = data?.docType || paymentDocType;
 
     try {
       let orderIdToPay = existingOrder?.id;
@@ -730,7 +789,8 @@ export default function TableOrderSection() {
           customer_name: customerName,
           status: "confirmed",
           payment_status: "paid",
-          payment_method: paymentMethod.toLowerCase(),
+          payment_method: finalMethod.toLowerCase(),
+          doc_type: finalDocType,
         };
 
         const res = await fetch("/api/waiter/orders", {
@@ -763,7 +823,8 @@ export default function TableOrderSection() {
             items: finalItems,
             total: totalCalculated,
             payment_status: "paid",
-            payment_method: paymentMethod.toLowerCase(),
+            payment_method: finalMethod.toLowerCase(),
+            doc_type: finalDocType,
             status: "served", // completed
           }),
         });
@@ -776,8 +837,8 @@ export default function TableOrderSection() {
         order_type: orderType,
         customer_name: customerName,
         total: totalCalculated,
-        payment_method: paymentMethod,
-        doc_type: paymentDocType,
+        payment_method: finalMethod,
+        doc_type: finalDocType,
         created_at: new Date().toISOString(),
         items: [
           ...(existingOrder?.items || []),
@@ -1959,133 +2020,18 @@ export default function TableOrderSection() {
       {/* ========================================================================= */}
       {/* --- MODAL: PAGAR / COBRAR CUENTA --- */}
       {/* ========================================================================= */}
-      {isPaymentModalOpen && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                  <Receipt size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">Cobrar Cuenta</h3>
-                  <p className="text-[11px] text-stone-400">
-                    {orderType === "mesa" ? `Mesa ${selectedTable}` : "Pedido Para Llevar"}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsPaymentModalOpen(false)}
-                className="text-stone-400 hover:text-white cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Total a pagar destacado */}
-            <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 text-center">
-              <span className="text-xs text-stone-400 uppercase tracking-wider block">
-                Total a Cobrar
-              </span>
-              <span className="text-3xl font-black text-amber-400 font-mono mt-1 block">
-                S/{totalCalculated.toFixed(2)}
-              </span>
-            </div>
-
-            {/* Tipo de Comprobante */}
-            <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-stone-300 block">Tipo de Comprobante</span>
-              <div className="grid grid-cols-3 gap-1.5 text-xs font-bold">
-                {(["NTV", "BOLETA", "FACTURA"] as DocumentType[]).map((doc) => {
-                  const active = paymentDocType === doc;
-                  return (
-                    <button
-                      key={doc}
-                      type="button"
-                      onClick={() => setPaymentDocType(doc)}
-                      className={`py-2 rounded-xl border text-center transition-all cursor-pointer ${
-                        active
-                          ? doc === "BOLETA"
-                            ? "bg-sky-500 text-black border-sky-400 font-extrabold"
-                            : doc === "FACTURA"
-                            ? "bg-emerald-500 text-black border-emerald-400 font-extrabold"
-                            : "bg-amber-500 text-black border-amber-400 font-extrabold"
-                          : "bg-stone-950 text-stone-400 border-stone-800 hover:text-white"
-                      }`}
-                    >
-                      {doc === "NTV" ? "Nota Venta" : doc}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Método de Pago */}
-            <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-stone-300 block">Método de Pago</span>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-500/50"
-              >
-                <option value="Efectivo"> Efectivo</option>
-                <option value="Yape">Yape</option>
-                <option value="Plin">Plin</option>
-                <option value="Tarjeta"> Tarjeta (POS)</option>
-                <option value="Mixto"> Mixto</option>
-              </select>
-            </div>
-
-            {/* Efectivo Recibido y Vuelto */}
-            {paymentMethod === "Efectivo" && (
-              <div className="bg-stone-950/80 p-3 rounded-2xl border border-stone-800 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-stone-400">Efectivo Recibido:</span>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="number"
-                      step="0.50"
-                      min="0"
-                      value={cashReceived}
-                      onChange={(e) => setCashReceived(e.target.value)}
-                      className="w-20 px-2 py-1 bg-stone-900 border border-stone-800 rounded-lg text-white font-mono text-xs text-right focus:outline-none focus:border-amber-500/50"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setCashReceived(totalCalculated.toFixed(2))}
-                      className="px-2 py-1 bg-stone-800 hover:bg-stone-700 text-[10px] text-stone-300 font-bold rounded-lg border border-stone-700 cursor-pointer"
-                    >
-                      Exacto
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs pt-1 border-t border-stone-800">
-                  <span className="text-stone-400">Vuelto:</span>
-                  <span className="font-mono font-bold text-emerald-400 text-sm">
-                    S/{vuelto.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Confirm Payment Button */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={handleConfirmPayment}
-                disabled={submittingPayment}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-[0.99] cursor-pointer"
-              >
-                <CheckCircle2 size={16} />
-                <span>
-                  {submittingPayment ? "Procesando pago..." : `Confirmar Pago S/${totalCalculated.toFixed(2)}`}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProcessPaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        total={totalCalculated}
+        subtotal={newCartSubtotal}
+        orderTitle={orderType === "mesa" ? `Mesa ${selectedTable}` : "Pedido Para Llevar"}
+        customerName={customerName}
+        initialDocType={paymentDocType}
+        initialPaymentMethod={paymentMethod}
+        isSubmitting={submittingPayment}
+        onConfirm={(data) => handleConfirmPayment(data as any)}
+      />
 
       {/* ========================================================================= */}
       {/* --- MODAL: COMPROBANTE / TICKET EMITIDO --- */}
@@ -2098,7 +2044,7 @@ export default function TableOrderSection() {
                 <Check size={24} strokeWidth={3} />
               </div>
               <h3 className="text-base font-extrabold text-white">¡Pago Confirmado!</h3>
-              <p className="text-xs text-stone-400">¡Qué Bravazo! Restobar</p>
+              <p className="text-xs text-stone-400">Komi Restobar</p>
               <p className="text-[11px] font-mono text-stone-500">ID: {lastCompletedOrder.id}</p>
             </div>
 

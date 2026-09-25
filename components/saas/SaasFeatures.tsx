@@ -8,7 +8,7 @@ import {
   ShieldCheck, 
   Clock, 
   Receipt,
-  Sparkles
+  UtensilsCrossed
 } from "lucide-react";
 
 export default function SaasFeatures() {
@@ -56,7 +56,7 @@ export default function SaasFeatures() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" />
+            <UtensilsCrossed className="w-3.5 h-3.5" />
             Diseñado para la Realidad Gastronómica
           </div>
           <h2 className="text-3xl sm:text-4xl font-heading font-black text-white">

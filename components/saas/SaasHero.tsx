@@ -8,7 +8,7 @@ import {
   BarChart3, 
   ArrowRight, 
   Play, 
-  Sparkles, 
+  UtensilsCrossed,
   CheckCircle2, 
   Clock, 
   ShieldCheck, 
@@ -55,7 +55,7 @@ export default function SaasHero() {
               href="/register"
               className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 text-base font-bold text-white bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 rounded-xl shadow-xl shadow-orange-600/30 hover:shadow-orange-600/50 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Sparkles className="w-5 h-5 text-amber-200" />
+              <UtensilsCrossed className="w-5 h-5 text-amber-200" />
               <span>Crear mi Restaurante Gratis</span>
               <ArrowRight className="w-4 h-4" />
             </Link>

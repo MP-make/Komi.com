@@ -5,9 +5,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   try {
     const { id } = await params;
     const body = await req.json();
-    const { payment_method } = body;
-
-    if (!payment_method || !['efectivo', 'yape'].includes(payment_method)) {
+    const normalizedMethod = body?.payment_method?.toLowerCase();
+    if (!normalizedMethod || !['efectivo', 'yape', 'plin', 'tarjeta', 'mixto'].includes(normalizedMethod)) {
       return NextResponse.json({ error: 'Método de pago inválido' }, { status: 400 });
     }
 
@@ -15,7 +14,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const { data, error } = await supabase
       .from('waiter_orders')
       .update({
-        payment_method,
+        payment_method: normalizedMethod,
         payment_status: 'paid',
         updated_at: new Date().toISOString(),
       })

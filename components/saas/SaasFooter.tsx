@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { UtensilsCrossed, ShieldCheck, Heart, Smartphone, ChefHat, Store, BarChart3 } from "lucide-react";
 
 export default function SaasFooter() {
@@ -10,13 +11,16 @@ export default function SaasFooter() {
           {/* Logo & Marca */}
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-lg">
-                <UtensilsCrossed className="w-5 h-5" />
+              <div className="relative w-10 h-10 rounded-full overflow-hidden bg-white shadow-lg border border-orange-500/30 shrink-0">
+                <Image
+                  src="/logokomi.png"
+                  alt="Komi"
+                  fill
+                  className="object-cover scale-[1.2] object-center"
+                  unoptimized
+                />
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="font-heading font-black text-xl tracking-tight text-white">
-                  Komi<span className="text-orange-500">.</span>
-                </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
                   SaaS
                 </span>

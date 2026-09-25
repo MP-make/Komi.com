@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { 
   UtensilsCrossed, 
   Menu as MenuIcon, 
@@ -10,7 +11,6 @@ import {
   Store, 
   ArrowRight, 
   LogIn, 
-  Sparkles,
   ChevronDown
 } from "lucide-react";
 
@@ -39,14 +39,18 @@ export default function SaasHeader() {
         <div className="flex items-center justify-between">
           {/* Logo & Marca */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 via-amber-500 to-orange-400 flex items-center justify-center shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform">
-              <UtensilsCrossed className="w-5 h-5 text-white" />
+            <div className="relative w-11 h-11 rounded-full overflow-hidden bg-white shadow-lg shadow-orange-500/10 group-hover:scale-105 transition-transform border border-orange-500/30 shrink-0">
+              <Image
+                src="/logokomi.png"
+                alt="Komi"
+                fill
+                className="object-cover scale-[1.2] object-center"
+                unoptimized
+                priority
+              />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
-                <span className="font-heading font-black text-xl tracking-tight text-white">
-                  Komi<span className="text-orange-500">.</span>
-                </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
                   SaaS
                 </span>
@@ -160,7 +164,7 @@ export default function SaasHeader() {
               href="/register"
               className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 rounded-lg shadow-lg shadow-orange-600/30 hover:shadow-orange-600/50 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Sparkles className="w-4 h-4" />
+              <UtensilsCrossed className="w-4 h-4" />
               <span>Crear Restaurante</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -260,7 +264,7 @@ export default function SaasHeader() {
               onClick={() => setMobileMenuOpen(false)}
               className="w-full flex items-center justify-center gap-2 mt-4 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-600 rounded-lg shadow-lg"
             >
-              <Sparkles className="w-4 h-4" />
+              <UtensilsCrossed className="w-4 h-4" />
               <span>Empezar Gratis 14 Días</span>
             </Link>
           </div>

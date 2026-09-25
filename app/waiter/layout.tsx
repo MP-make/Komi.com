@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuthStore } from "@/lib/stores/auth";
 import {
   ShoppingBag,
@@ -13,7 +13,8 @@ import {
   ExternalLink,
   Menu,
   X,
-  Utensils
+  Utensils,
+  ChevronDown,
 } from "lucide-react";
 
 export default function WaiterLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,10 @@ export default function WaiterLayout({ children }: { children: React.ReactNode }
   // Estado de colapso de la barra lateral (Mini-rail vs Expandido)
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // Móvil drawer
+
+  // Acordeón de Ventas (Tomar Pedido, Historial de Pedidos)
+  const isVentasSection = pathname === "/waiter" || pathname.startsWith("/waiter/mis-pedidos");
+  const [ventasOpen, setVentasOpen] = useState(true);
 
   // Recordar preferencia de colapso en localStorage
   useEffect(() => {
@@ -71,8 +76,8 @@ export default function WaiterLayout({ children }: { children: React.ReactNode }
   const isPerfilActive = pathname.startsWith("/waiter/perfil");
 
   const getPageTitle = () => {
-    if (isPosActive) return "Tomar Pedido (Mesas)";
-    if (isOrdersActive) return "Mis Pedidos";
+    if (isPosActive) return "Ventas / Tomar Pedido (Mesas)";
+    if (isOrdersActive) return "Ventas / Historial de Pedidos";
     if (isPerfilActive) return "Mi Perfil";
     return "Panel Mesero";
   };
@@ -99,31 +104,35 @@ export default function WaiterLayout({ children }: { children: React.ReactNode }
         className={`
           flex flex-col bg-stone-900 border-r border-stone-800 flex-shrink-0 h-screen z-40 transition-all duration-300 ease-in-out
           max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:w-64 max-md:shadow-2xl
-          ${sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
+          ${sidebarOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"}
           md:relative md:translate-x-0
-          ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+          ${isCollapsed ? "md:w-20" : "md:w-64"}
         `}
       >
-        {/* Cabecera Sidebar (Logo + Nombre + Botón Colapsar / Expandir) */}
+        {/* Cabecera Sidebar (Logo Komi + Nombre + Botón Colapsar / Expandir) */}
         <div className="p-4 border-b border-stone-800/80 flex-shrink-0">
           {!isCollapsed ? (
             <div className="space-y-3">
-              {/* Fila 1: Logo + Nombre */}
+              {/* Fila 1: Logo + Nombre Komi */}
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl overflow-hidden border border-stone-700 flex-shrink-0 bg-stone-950 flex items-center justify-center shadow-md">
+                <div className="relative w-9 h-9 rounded-full overflow-hidden bg-white shadow-md border border-amber-500/30 shrink-0">
                   <Image
-                    src="/logo_que_bravazo.png"
-                    alt="Logo"
-                    width={36}
-                    height={36}
-                    className="w-full h-full object-cover"
+                    src="/logokomi.png"
+                    alt="Komi"
+                    fill
+                    className="object-cover scale-[1.2] object-center"
+                    unoptimized
                   />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-black tracking-tight text-white uppercase truncate">
-                    ¡QUÉ BRAVAZO!
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      Meseros
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-stone-400 font-medium truncate">
+                    Panel de Atención
                   </span>
-                  <span className="text-[10px] text-stone-400 font-medium">Panel Meseros</span>
                 </div>
               </div>
 
@@ -150,13 +159,13 @@ export default function WaiterLayout({ children }: { children: React.ReactNode }
           ) : (
             /* Modo Colapsado (Mini-Rail) */
             <div className="flex flex-col items-center gap-3 py-1">
-              <div className="w-9 h-9 rounded-xl overflow-hidden border border-stone-700 flex-shrink-0 bg-stone-950 flex items-center justify-center shadow-md">
+              <div className="relative w-9 h-9 rounded-full overflow-hidden bg-white shadow-md border border-amber-500/30 shrink-0">
                 <Image
-                  src="/logo_que_bravazo.png"
-                  alt="Logo"
-                  width={36}
-                  height={36}
-                  className="w-full h-full object-cover"
+                  src="/logokomi.png"
+                  alt="Komi"
+                  fill
+                  className="object-cover scale-[1.2] object-center"
+                  unoptimized
                 />
               </div>
 
@@ -177,41 +186,78 @@ export default function WaiterLayout({ children }: { children: React.ReactNode }
 
         {/* Navegación Principal del Mesero */}
         <nav className={`flex-1 py-3 space-y-1.5 overflow-y-auto overflow-x-hidden no-scrollbar ${isCollapsed ? "px-2 flex flex-col items-center" : "px-3"}`}>
-          {/* 1. Tomar Pedido (Mesas) */}
-          <Link
-            href="/waiter"
-            onClick={() => setSidebarOpen(false)}
-            title="Tomar Pedido"
-            className={`flex items-center gap-3 rounded-2xl text-sm font-semibold transition-all group ${
-              isPosActive
-                ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/30"
-                : "text-stone-400 hover:text-white hover:bg-stone-800/50"
-            } ${isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2.5 w-full"}`}
-          >
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isPosActive ? "text-amber-400" : "text-stone-400 group-hover:text-amber-400"}`}>
-              <Utensils size={19} />
-            </div>
-            {!isCollapsed && <span>Tomar Pedido</span>}
-          </Link>
+          {/* 1. SECCIÓN VENTAS (Acordeón: Tomar Pedido (Mesas) / Historial de Pedidos) */}
+          <div className={isCollapsed ? "w-full flex justify-center" : "w-full"}>
+            <button
+              type="button"
+              onClick={() => {
+                if (isCollapsed) {
+                  setIsCollapsed(false);
+                  setVentasOpen(true);
+                } else {
+                  setVentasOpen(!ventasOpen);
+                }
+              }}
+              title="Ventas (Tomar Pedido / Historial de Pedidos)"
+              className={`flex items-center gap-3 rounded-2xl text-sm font-semibold transition-all cursor-pointer ${
+                isVentasSection
+                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold"
+                  : "text-stone-400 hover:text-white hover:bg-stone-800/50"
+              } ${isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2.5 w-full"}`}
+            >
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                isVentasSection ? "bg-amber-500/20 text-amber-400" : "text-stone-400"
+              }`}>
+                <ShoppingBag size={19} />
+              </div>
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1 text-left">Ventas</span>
+                  <ChevronDown
+                    size={15}
+                    className={`transition-transform duration-200 text-stone-400 ${
+                      ventasOpen ? "rotate-0" : "-rotate-90"
+                    }`}
+                  />
+                </>
+              )}
+            </button>
 
-          {/* 2. Mis Pedidos */}
-          <Link
-            href="/waiter/mis-pedidos"
-            onClick={() => setSidebarOpen(false)}
-            title="Mis Pedidos"
-            className={`flex items-center gap-3 rounded-2xl text-sm font-semibold transition-all group ${
-              isOrdersActive
-                ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/30"
-                : "text-stone-400 hover:text-white hover:bg-stone-800/50"
-            } ${isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2.5 w-full"}`}
-          >
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isOrdersActive ? "text-amber-400" : "text-stone-400 group-hover:text-white"}`}>
-              <ClipboardList size={19} />
-            </div>
-            {!isCollapsed && <span>Mis Pedidos</span>}
-          </Link>
+            {/* Submenú de Ventas para Meseros */}
+            {!isCollapsed && ventasOpen && (
+              <div className="pl-6 pr-1 pt-1.5 pb-1 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                {/* Opción 1: Tomar Pedido (Mesas) */}
+                <Link
+                  href="/waiter"
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    isPosActive
+                      ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/20"
+                      : "text-stone-400 hover:text-white hover:bg-stone-800/60"
+                  }`}
+                >
+                  <Utensils size={14} className={isPosActive ? "text-amber-400" : "text-stone-500"} />
+                  <span>Tomar Pedido (Mesas)</span>
+                </Link>
 
-          {/* 3. Mi Perfil */}
+                {/* Opción 2: Historial de Pedidos */}
+                <Link
+                  href="/waiter/mis-pedidos"
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    isOrdersActive
+                      ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/20"
+                      : "text-stone-400 hover:text-white hover:bg-stone-800/60"
+                  }`}
+                >
+                  <ClipboardList size={14} className={isOrdersActive ? "text-amber-400" : "text-stone-500"} />
+                  <span>Historial de Pedidos</span>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* 2. Mi Perfil */}
           <Link
             href="/waiter/perfil"
             onClick={() => setSidebarOpen(false)}
@@ -272,72 +318,74 @@ export default function WaiterLayout({ children }: { children: React.ReactNode }
             {!isCollapsed && (
               <button
                 type="button"
-                onClick={() => { logout(); router.push("/login"); }}
-                className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                title="Cerrar sesión"
+                onClick={() => {
+                  logout();
+                  router.push("/login");
+                }}
+                title="Cerrar Sesión"
+                className="p-1.5 text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
               >
-                <LogOut size={15} />
+                <LogOut size={16} />
               </button>
             )}
           </div>
 
-          {/* Botón de logout en modo colapsado */}
+          {/* Botón Logout cuando está Colapsado */}
           {isCollapsed && (
             <button
               type="button"
-              onClick={() => { logout(); router.push("/login"); }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-              title="Cerrar sesión"
+              onClick={() => {
+                logout();
+                router.push("/login");
+              }}
+              title="Cerrar Sesión"
+              className="w-11 h-11 flex items-center justify-center text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-2xl border border-stone-800 hover:border-rose-500/30 transition-all cursor-pointer"
             >
-              <LogOut size={16} />
+              <LogOut size={18} />
             </button>
           )}
         </div>
       </aside>
 
-      {/* Contenedor Principal */}
-      <div className="flex-1 flex flex-col h-screen h-[100dvh] max-w-full overflow-hidden">
-        {/* Barra Superior Fija */}
-        <header className="h-14 lg:h-16 flex items-center gap-3 px-4 lg:px-6 border-b border-stone-800/80 bg-stone-950/80 backdrop-blur-md flex-shrink-0 shadow-sm z-30">
-          {/* Botón Hamburger solo en móvil */}
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 -ml-1 rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-800 transition-colors md:hidden cursor-pointer"
-            aria-label={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
-          >
-            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-
-          {/* Título de la sección actual */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-white tracking-tight">
-              {getPageTitle()}
-            </span>
+      {/* ÁREA DE CONTENIDO PRINCIPAL */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {/* Header Superior Móvil / Tablet */}
+        <header className="h-14 border-b border-stone-800 bg-stone-900/90 backdrop-blur-md px-4 flex items-center justify-between flex-shrink-0 z-20">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 -ml-1 text-stone-400 hover:text-white rounded-xl hover:bg-stone-800 md:hidden"
+              title="Abrir menú"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
+                {getPageTitle()}
+              </span>
+            </div>
           </div>
 
-          <div className="flex-1" />
-
-          {/* Perfil & Logout Header */}
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline text-xs text-stone-400 font-medium">
-              {user?.name || user?.email}
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-800/80 border border-stone-700/60 text-xs text-stone-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              {user?.name || "Mesero"}
             </span>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black text-xs font-bold shadow-md shadow-amber-500/20">
-              {user?.name?.charAt(0) || user?.email?.charAt(0) || "M"}
-            </div>
-            <button
-              onClick={() => { logout(); router.push("/login"); }}
-              className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-              title="Cerrar sesión"
+
+            <Link
+              href="/delivery"
+              target="_blank"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-semibold transition-colors"
             >
-              <LogOut size={16} />
-            </button>
+              <ExternalLink size={13} />
+              <span>Ver Carta</span>
+            </Link>
           </div>
         </header>
 
-        {/* ÚNICA ÁREA DE CONTENIDO */}
-        <main className={`flex-1 relative ${isPosActive ? "overflow-hidden p-0" : "overflow-y-auto p-4 sm:p-6 lg:p-8 pb-20 md:pb-8"}`}>
+        {/* Contenido de la Página */}
+        <main className="flex-1 min-w-0 h-[calc(100vh-3.5rem)] overflow-y-auto bg-stone-950 relative">
           {children}
         </main>
       </div>

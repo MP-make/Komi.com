@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Sparkles, ArrowRight } from "lucide-react";
+import { Check, UtensilsCrossed, ArrowRight } from "lucide-react";
 
 export default function SaasPricing() {
   const [annualBilling, setAnnualBilling] = useState(false);
@@ -77,7 +77,7 @@ export default function SaasPricing() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 text-orange-400 text-xs font-semibold border border-orange-500/20">
-            <Sparkles className="w-3.5 h-3.5" />
+            <UtensilsCrossed className="w-3.5 h-3.5" />
             Planes Transparentes y Sin Sorpresas
           </div>
           <h2 className="text-3xl sm:text-4xl font-heading font-black text-white">

@@ -187,6 +187,44 @@ export default function AdminOrdersSection({ onOpenYape }: { onOpenYape?: () => 
   const [processingRefund, setProcessingRefund] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Configuración del negocio para comprobantes / tickets
+  const [restaurantSettings, setRestaurantSettings] = useState<{
+    name?: string;
+    ruc?: string;
+    description?: string;
+    address?: string;
+    phone?: string;
+    logo_url?: string;
+    ticket_footer?: string;
+    ticket_legal?: string;
+  }>({
+    name: "Que Bravazo! Restobar",
+    ruc: "20608945123",
+    description: "RESTOBAR & DELIVERY",
+    address: "Urb. Los Jardines de San Andrés, Pisco, Ica",
+    ticket_footer: "¡GRACIAS POR SU PREFERENCIA! VUELVA PRONTO.",
+    ticket_legal: "Comprobante sin valor tributario",
+  });
+
+  useEffect(() => {
+    try {
+      const local = localStorage.getItem("restaurant_settings");
+      if (local) {
+        const parsed = JSON.parse(local);
+        setRestaurantSettings((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {}
+
+    fetch("/api/admin/settings?key=restaurant_settings")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.value) {
+          setRestaurantSettings((prev) => ({ ...prev, ...res.value }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Carga de órdenes
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -904,10 +942,28 @@ export default function AdminOrdersSection({ onOpenYape }: { onOpenYape?: () => 
             {/* Simulación del Ticket Térmico en papel */}
             <div id="ticket-pos-print" className="p-6 bg-white text-black font-mono text-xs space-y-3 select-text shadow-inner">
               <div className="text-center space-y-1">
-                <p className="font-extrabold text-sm uppercase">¡QUÉ BRAVAZO!</p>
-                <p className="text-[11px] text-gray-700">RESTOBAR & DELIVERY</p>
-                <p className="text-[10px] text-gray-500">RUC: 20608945123</p>
-                <p className="text-[10px] text-gray-500">Lima, Perú</p>
+                {restaurantSettings.logo_url && (
+                  <div className="flex justify-center mb-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={restaurantSettings.logo_url}
+                      alt="Logo"
+                      className="h-10 object-contain max-w-[120px]"
+                    />
+                  </div>
+                )}
+                <p className="font-extrabold text-sm uppercase">
+                  {restaurantSettings.name || "¡QUÉ BRAVAZO!"}
+                </p>
+                <p className="text-[11px] text-gray-700">
+                  {restaurantSettings.description || "RESTOBAR & DELIVERY"}
+                </p>
+                <p className="text-[10px] text-gray-500">
+                  RUC: {restaurantSettings.ruc || "20608945123"}
+                </p>
+                <p className="text-[10px] text-gray-500">
+                  {restaurantSettings.address || "Pisco, Ica - Perú"}
+                </p>
               </div>
 
               <div className="border-t border-dashed border-gray-400 my-2" />
@@ -949,7 +1005,7 @@ export default function AdminOrdersSection({ onOpenYape }: { onOpenYape?: () => 
                 </div>
                 {(receiptOrder.takeaway_charge || 0) > 0 && (
                   <div className="flex justify-between">
-                    <span>EMPAQUE</span>
+                    <span>EMPAQUE / TÁPER</span>
                     <span>S/{receiptOrder.takeaway_charge?.toFixed(2)}</span>
                   </div>
                 )}
@@ -965,9 +1021,13 @@ export default function AdminOrdersSection({ onOpenYape }: { onOpenYape?: () => 
 
               <div className="border-t border-dashed border-gray-400 my-3" />
 
-              <div className="text-center text-[10px] text-gray-500">
-                <p>¡GRACIAS POR SU PREFERENCIA!</p>
-                <p className="mt-0.5">Comprobante sin valor tributario</p>
+              <div className="text-center text-[10px] text-gray-500 space-y-0.5">
+                <p className="font-bold text-gray-700 uppercase">
+                  {restaurantSettings.ticket_footer || "¡GRACIAS POR SU PREFERENCIA! VUELVA PRONTO."}
+                </p>
+                <p className="mt-0.5">
+                  {restaurantSettings.ticket_legal || "Comprobante sin valor tributario"}
+                </p>
               </div>
             </div>
 

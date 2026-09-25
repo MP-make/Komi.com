@@ -43,11 +43,40 @@ export default function CheckoutPage() {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [categoriesMap, setCategoriesMap] = useState<Record<string, { charges_taper: boolean }>>({});
+
+  useEffect(() => {
+    fetch('/api/admin/categories')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.data && Array.isArray(res.data)) {
+          const map: Record<string, { charges_taper: boolean }> = {};
+          res.data.forEach((c: any) => {
+            const val = { charges_taper: c.charges_taper !== false };
+            if (c.id) map[c.id] = val;
+            if (c.slug) map[c.slug.toLowerCase().trim()] = val;
+            if (c.name) map[c.name.toLowerCase().trim()] = val;
+          });
+          setCategoriesMap(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const taperCost = items.reduce((sum, item) => {
+    const catSlug = (item.category_slug || '').toLowerCase().trim();
+    const catName = (item.category || '').toLowerCase().trim();
+    const config = (catSlug && categoriesMap[catSlug]) || (catName && categoriesMap[catName]);
+    const chargesTaper = config !== undefined
+      ? config.charges_taper
+      : !/bebida|gaseosa|refresco|cerveza|trago|jugo|agua|vino|snack/i.test(`${catSlug} ${catName}`);
+    return sum + (chargesTaper ? item.quantity * 1.0 : 0);
+  }, 0);
 
   // Cálculos SIN IGV
   const subtotal = getTotal();
   const delivery = isJardines ? 0 : PAYMENT_CONFIG.deliveryCost;
-  const total = subtotal + delivery;
+  const total = subtotal + delivery + taperCost;
   const jardinesAddress = isJardines
     ? `Urb. Los Jardines de San Andrés - Mz ${jardinesManzana}, Lt ${jardinesLote}`
     : '';
@@ -182,6 +211,9 @@ export default function CheckoutPage() {
       }
     });
     message += `\n💰 *SUBTOTAL:* S/ ${subtotal.toFixed(2)}\n`;
+    if (taperCost > 0) {
+      message += `🥡 *ENVASES / TÁPERES:* S/ ${taperCost.toFixed(2)}\n`;
+    }
     message += `🚚 *DELIVERY:* S/ ${delivery.toFixed(2)}\n`;
     message += ` *TOTAL:* S/ ${total.toFixed(2)}\n`;
     if (notes) {
@@ -286,6 +318,12 @@ export default function CheckoutPage() {
                   <span>Subtotal</span>
                   <span className="font-medium">S/ {subtotal.toFixed(2)}</span>
                 </div>
+                {taperCost > 0 && (
+                  <div className="flex justify-between text-xs md:text-base text-stone-600">
+                    <span>Envases / Táperes</span>
+                    <span className="font-medium text-amber-600">S/ {taperCost.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-xs md:text-base text-stone-600">
                   <span>Delivery {isJardines && <span className="text-emerald-600 text-[10px] md:text-xs font-semibold">(Urb. Jardines)</span>}</span>
                   <span className={`font-medium ${isJardines ? 'text-emerald-600' : ''}`}>

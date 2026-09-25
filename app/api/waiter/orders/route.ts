@@ -28,7 +28,7 @@ export async function GET(req: Request) {
       supabase.from('admin_users').select('id, yape_qr_url, yape_name').eq('role', 'owner'),
     ]);
 
-    const globalConfig = globalRes.data?.value ?? { qr_url: '', name: '¡Qué Bravazo! Restobar' };
+    const globalConfig = globalRes.data?.value ?? { qr_url: '', name: 'Komi Restobar' };
     const ownerMap = new Map<string, { qr_url: string; name: string }>();
     for (const o of ownersRes.data || []) {
       ownerMap.set(o.id, { qr_url: o.yape_qr_url || '', name: o.yape_name || '' });
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     const orders = (data || []).map((order: any) => {
       const ownerYape = ownerMap.get(order.waiter_id);
       const yapeConfig = ownerYape && (ownerYape.qr_url || ownerYape.name)
-        ? { qr_url: ownerYape.qr_url || globalConfig.qr_url || '', name: ownerYape.name || globalConfig.name || '¡Qué Bravazo! Restobar' }
+        ? { qr_url: ownerYape.qr_url || globalConfig.qr_url || '', name: ownerYape.name || globalConfig.name || 'Komi Restobar' }
         : globalConfig;
       return { ...order, yape_config: yapeConfig };
     });

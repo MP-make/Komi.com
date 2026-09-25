@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description: "Plataforma SaaS para comercios y restaurantes. Catálogo web interactivo con pedidos directos a WhatsApp, punto de venta (POS) sincronizado, comandero móvil y control total de inventario sin comisiones.",
   icons: {
     icon: [
-      { url: "/favicon.webp", sizes: "any", type: "image/webp" },
+      { url: "/logokomi.png", sizes: "any" },
     ],
   },
 };

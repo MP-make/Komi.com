@@ -26,6 +26,7 @@ import {
   Grid2X2,
   Receipt,
   Store,
+  Building2,
 } from "lucide-react";
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
@@ -51,13 +52,46 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/chef");
   const [ventasOpen, setVentasOpen] = useState(true);
 
-  // Acordeón del Menú
+  // Acordeón de Carta / Menú
   const isMenuSection = pathname.startsWith("/admin/menu");
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Acordeón de Configuración
-  const isSettingsSection = pathname.startsWith("/admin/settings") || pathname.startsWith("/admin/tables") || pathname.startsWith("/admin/staff");
+  // Acordeón de Tienda Online (Ver Tienda, Configuración, Multimedia)
+  const isTiendaSection =
+    pathname.startsWith("/admin/settings/store") ||
+    pathname.startsWith("/admin/media") ||
+    pathname.startsWith("/t/");
+  const [tiendaOpen, setTiendaOpen] = useState(isTiendaSection);
+  const [storeSlug, setStoreSlug] = useState("quebravazo");
+
+  useEffect(() => {
+    const loadSlug = () => {
+      try {
+        const saved = localStorage.getItem("komi_store_settings");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.slug) setStoreSlug(parsed.slug);
+        }
+      } catch {}
+      fetch("/api/admin/settings?key=komi_store_settings")
+        .then((r) => r.json())
+        .then((res) => {
+          if (res?.value?.slug) {
+            setStoreSlug(res.value.slug);
+          }
+        })
+        .catch(() => {});
+    };
+
+    loadSlug();
+    window.addEventListener("komi_store_settings_updated", loadSlug);
+    return () => window.removeEventListener("komi_store_settings_updated", loadSlug);
+  }, []);
+
+  // Acordeón de Configuración (Negocio, Personal y Mesas)
+  const isBusinessSettingsActive = pathname === "/admin/settings";
   const isTablesConfigActive = pathname.startsWith("/admin/settings/tables") || pathname.startsWith("/admin/tables");
+  const isSettingsSection = isBusinessSettingsActive || pathname.startsWith("/admin/staff") || isTablesConfigActive;
   const [settingsOpen, setSettingsOpen] = useState(isSettingsSection);
 
   // Recordar preferencia de colapso en localStorage
@@ -166,9 +200,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     if (isOrdersActive) return "Ventas / Historial de Pedidos";
     if (isKdsActive) return "Ventas / Cocina (KDS)";
     if (isStaffActive) return "Configuración / Personal";
-    if (isStoreSettingsActive) return "Configuración / Tienda Online & WhatsApp";
-    if (isMediaActive) return "Multimedia";
     if (isTablesConfigActive) return "Configuración / Distribución de Mesas";
+    if (isStoreSettingsActive) return "Tienda Online / Configuración";
+    if (isMediaActive) return "Tienda Online / Multimedia & Banners";
     if (isSettingsSection) return "Configuración";
     return "Panel Admin";
   };
@@ -199,14 +233,17 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             <div className="space-y-3">
               {/* Fila 1: Logo + Nombre */}
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-lg shadow-md shadow-amber-500/20 shrink-0">
-                  K
+                <div className="relative w-9 h-9 rounded-full overflow-hidden bg-white shadow-md border border-amber-500/30 shrink-0">
+                  <Image
+                    src="/logokomi.png"
+                    alt="Komi"
+                    fill
+                    className="object-cover scale-[1.2] object-center"
+                    unoptimized
+                  />
                 </div>
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-base font-black tracking-tight text-white">
-                      Komi<span className="text-amber-400">.</span>
-                    </span>
                     <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
                       POS
                     </span>
@@ -238,8 +275,14 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           ) : (
             /* Modo Colapsado (Mini-Rail) */
             <div className="flex flex-col items-center gap-3 py-1">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-lg shadow-md shadow-amber-500/20 shrink-0">
-                K
+              <div className="relative w-9 h-9 rounded-full overflow-hidden bg-white shadow-md border border-amber-500/30 shrink-0">
+                <Image
+                  src="/logokomi.png"
+                  alt="Komi"
+                  fill
+                  className="object-cover scale-[1.2] object-center"
+                  unoptimized
+                />
               </div>
 
               <button
@@ -445,23 +488,90 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
-          {/* 4. MULTIMEDIA */}
-          <Link
-            href="/admin/media"
-            title="Multimedia"
-            className={`flex items-center gap-3 rounded-2xl text-sm font-semibold transition-all group ${
-              isMediaActive
-                ? "bg-stone-800/90 text-white shadow-sm border border-stone-700/60"
-                : "text-stone-400 hover:text-white hover:bg-stone-800/50"
-            } ${isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2.5 w-full"}`}
-          >
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isMediaActive ? "text-amber-400" : "text-stone-400 group-hover:text-white"}`}>
-              <ImageIcon size={19} />
-            </div>
-            {!isCollapsed && <span>Multimedia</span>}
-          </Link>
+          {/* 4. TIENDA ONLINE (Sección Dedicada: Ver Tienda, Configuración y Multimedia) */}
+          <div className={isCollapsed ? "w-full flex justify-center" : "w-full"}>
+            <button
+              type="button"
+              onClick={() => {
+                if (isCollapsed) {
+                  setIsCollapsed(false);
+                  setTiendaOpen(true);
+                } else {
+                  setTiendaOpen(!tiendaOpen);
+                }
+              }}
+              title="Tienda Online (Ver Tienda, Configuración, Multimedia)"
+              className={`flex items-center gap-3 rounded-2xl text-sm font-semibold transition-all cursor-pointer ${
+                isTiendaSection
+                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold"
+                  : "text-stone-400 hover:text-white hover:bg-stone-800/50"
+              } ${isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2.5 w-full"}`}
+            >
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  isTiendaSection ? "bg-amber-500/20 text-amber-400" : "text-stone-400"
+                }`}
+              >
+                <Store size={19} />
+              </div>
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1 text-left">Tienda Online</span>
+                  <ChevronDown
+                    size={15}
+                    className={`transition-transform duration-200 text-stone-400 ${
+                      tiendaOpen ? "rotate-0" : "-rotate-90"
+                    }`}
+                  />
+                </>
+              )}
+            </button>
 
-          {/* 5. CONFIGURACIÓN (Acordeón con Personal y Mesas) */}
+            {/* Submenú de Tienda Online */}
+            {!isCollapsed && tiendaOpen && (
+              <div className="pl-6 pr-1 pt-1.5 pb-1 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                <Link
+                  href={`/t/${storeSlug || "quebravazo"}`}
+                  target="_blank"
+                  className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 transition-all group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ExternalLink size={14} className="text-emerald-400" />
+                    <span>Ver Tienda Online</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-400 font-bold">
+                    Abrir
+                  </span>
+                </Link>
+
+                <Link
+                  href="/admin/settings/store"
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    isStoreSettingsActive
+                      ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/20"
+                      : "text-stone-400 hover:text-white hover:bg-stone-800/60"
+                  }`}
+                >
+                  <Settings size={14} className={isStoreSettingsActive ? "text-amber-400" : "text-stone-500"} />
+                  <span>Configuración de Tienda</span>
+                </Link>
+
+                <Link
+                  href="/admin/media"
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    isMediaActive
+                      ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/20"
+                      : "text-stone-400 hover:text-white hover:bg-stone-800/60"
+                  }`}
+                >
+                  <ImageIcon size={14} className={isMediaActive ? "text-amber-400" : "text-stone-500"} />
+                  <span>Multimedia & Banners</span>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* 5. CONFIGURACIÓN (Acordeón con Negocio, Personal y Mesas) */}
           <div className={isCollapsed ? "w-full flex justify-center" : "w-full"}>
             <button
               type="button"
@@ -473,7 +583,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                   setSettingsOpen(!settingsOpen);
                 }
               }}
-              title="Configuración (Personal, Mesas)"
+              title="Configuración (Negocio, Personal, Mesas)"
               className={`flex items-center gap-3 rounded-2xl text-sm font-semibold transition-all cursor-pointer ${
                 isSettingsSection
                   ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold"
@@ -502,6 +612,18 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             {!isCollapsed && settingsOpen && (
               <div className="pl-6 pr-1 pt-1.5 pb-1 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
                 <Link
+                  href="/admin/settings"
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    isBusinessSettingsActive
+                      ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/20"
+                      : "text-stone-400 hover:text-white hover:bg-stone-800/60"
+                  }`}
+                >
+                  <Building2 size={14} className={isBusinessSettingsActive ? "text-amber-400" : "text-stone-500"} />
+                  <span>Datos del Negocio & Sistema</span>
+                </Link>
+
+                <Link
                   href="/admin/staff"
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                     isStaffActive
@@ -511,18 +633,6 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 >
                   <Users size={14} className={isStaffActive ? "text-amber-400" : "text-stone-500"} />
                   <span>Personal / Usuarios</span>
-                </Link>
-
-                <Link
-                  href="/admin/settings/store"
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                    isStoreSettingsActive
-                      ? "bg-amber-500/15 text-amber-400 font-bold border border-amber-500/20"
-                      : "text-stone-400 hover:text-white hover:bg-stone-800/60"
-                  }`}
-                >
-                  <Store size={14} className={isStoreSettingsActive ? "text-amber-400" : "text-stone-500"} />
-                  <span>Tienda Online & WhatsApp</span>
                 </Link>
 
                 <Link
@@ -538,28 +648,6 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 </Link>
               </div>
             )}
-          </div>
-
-          {/* Enlace rápido: Ver Tienda Online Komi */}
-          <div className="pt-2">
-            <Link
-              href="/t/demo"
-              target="_blank"
-              title="Ver Tienda Online / Catálogo WhatsApp (Pestaña nueva)"
-              className={`flex items-center gap-3 rounded-2xl text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-all ${
-                isCollapsed ? "w-11 h-11 justify-center p-0" : "px-3.5 py-2 w-full"
-              }`}
-            >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-emerald-400">
-                <Store size={17} />
-              </div>
-              {!isCollapsed && (
-                <div className="flex items-center justify-between w-full">
-                  <span>Tienda Online</span>
-                  <ExternalLink size={12} className="opacity-70" />
-                </div>
-              )}
-            </Link>
           </div>
         </nav>
 

@@ -9,7 +9,7 @@ import {
   KeyRound, 
   Layers,
   CheckCircle,
-  Sparkles
+  UtensilsCrossed
 } from "lucide-react";
 
 export default function SaasLiveDemos() {
@@ -93,7 +93,7 @@ export default function SaasLiveDemos() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-xs font-semibold text-neutral-300">
-            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+            <UtensilsCrossed className="w-3.5 h-3.5 text-orange-400" />
             Acceso Directo Sin Fricción
           </div>
           <h2 className="text-3xl sm:text-4xl font-heading font-black text-white">

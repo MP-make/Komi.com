@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Calculator, ArrowRight, DollarSign, TrendingUp, Sparkles } from "lucide-react";
+import { Calculator, ArrowRight, DollarSign, TrendingUp, UtensilsCrossed } from "lucide-react";
 
 export default function SaasCalculator() {
   const [ordersPerMonth, setOrdersPerMonth] = useState<number>(400);
@@ -130,7 +130,7 @@ export default function SaasCalculator() {
                   href="/register"
                   className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-600/30 transition-all hover:scale-[1.01]"
                 >
-                  <Sparkles className="w-4 h-4" />
+                  <UtensilsCrossed className="w-4 h-4" />
                   <span>Empezar a Ahorrar con mi Restaurante</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>

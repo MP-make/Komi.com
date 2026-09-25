@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Store,
   MessageCircle,
@@ -18,52 +19,151 @@ import {
   QrCode,
   AlertCircle,
   HelpCircle,
+  Loader2,
+  Upload,
+  ImageIcon,
 } from "lucide-react";
 import { DEFAULT_TENANT } from "@/lib/tenant";
 
 export default function StoreSettingsPage() {
-  const [slug, setSlug] = useState("demo");
-  const [storeName, setStoreName] = useState("Komi Market & Store");
-  const [whatsapp, setWhatsapp] = useState("51987654321");
-  const [address, setAddress] = useState("Av. Principal 123, Lima");
+  const [slug, setSlug] = useState("quebravazo");
+  const [storeName, setStoreName] = useState("Que Bravazo! Restobar");
+  const [whatsapp, setWhatsapp] = useState("51946826535");
+  const [address, setAddress] = useState("Urb. Los Jardines de San Andrés, Pisco, Ica");
   const [description, setDescription] = useState(
     "Catálogo digital interactivo con pedidos directos a WhatsApp y entrega rápida."
   );
   const [deliveryCost, setDeliveryCost] = useState("5.00");
   const [allowDelivery, setAllowDelivery] = useState(true);
   const [allowTakeaway, setAllowTakeaway] = useState(true);
-  const [yapeNumber, setYapeNumber] = useState("987654321");
-  const [yapeHolder, setYapeHolder] = useState("Komi Store");
+  const [yapeNumber, setYapeNumber] = useState("946826535");
+  const [yapeHolder, setYapeHolder] = useState("Que Bravazo! Restobar");
   const [isOpen, setIsOpen] = useState(true);
+  const [logoUrl, setLogoUrl] = useState("/logo_que_bravazo.png");
+  const [bannerUrl, setBannerUrl] = useState("/Fondo restaurante.png");
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [originUrl, setOriginUrl] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const applyConfig = (parsed: any) => {
+    if (!parsed) return;
+    if (parsed.name) setStoreName(parsed.name);
+    if (parsed.slug) setSlug(parsed.slug);
+    if (parsed.whatsapp) setWhatsapp(parsed.whatsapp);
+    if (parsed.address) setAddress(parsed.address);
+    if (parsed.description) setDescription(parsed.description);
+    if (parsed.deliveryCost !== undefined) setDeliveryCost(String(parsed.deliveryCost));
+    if (parsed.allowDelivery !== undefined) setAllowDelivery(parsed.allowDelivery);
+    if (parsed.allowTakeaway !== undefined) setAllowTakeaway(parsed.allowTakeaway);
+    if (parsed.yapeNumber) setYapeNumber(parsed.yapeNumber);
+    if (parsed.yapeHolder) setYapeHolder(parsed.yapeHolder);
+    if (parsed.isOpen !== undefined) setIsOpen(parsed.isOpen);
+    if (parsed.logo_url) setLogoUrl(parsed.logo_url);
+    if (parsed.banner_url) setBannerUrl(parsed.banner_url);
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       setOriginUrl(window.location.origin);
-      // Cargar configuración previa si existe
+      // 1. Cargar desde localStorage para visualización instantánea
       try {
-        const saved = localStorage.getItem(`komi_store_settings_${slug}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.name) setStoreName(parsed.name);
-          if (parsed.whatsapp) setWhatsapp(parsed.whatsapp);
-          if (parsed.address) setAddress(parsed.address);
-          if (parsed.description) setDescription(parsed.description);
-          if (parsed.deliveryCost !== undefined) setDeliveryCost(String(parsed.deliveryCost));
-          if (parsed.allowDelivery !== undefined) setAllowDelivery(parsed.allowDelivery);
-          if (parsed.allowTakeaway !== undefined) setAllowTakeaway(parsed.allowTakeaway);
-          if (parsed.yapeNumber) setYapeNumber(parsed.yapeNumber);
-          if (parsed.yapeHolder) setYapeHolder(parsed.yapeHolder);
-          if (parsed.isOpen !== undefined) setIsOpen(parsed.isOpen);
+        const savedStore =
+          localStorage.getItem("komi_store_settings") ||
+          localStorage.getItem(`komi_store_settings_${slug}`);
+        const savedRest = localStorage.getItem("restaurant_settings");
+        if (savedStore) {
+          applyConfig(JSON.parse(savedStore));
+        } else if (savedRest) {
+          applyConfig(JSON.parse(savedRest));
         }
       } catch (e) {
         console.warn("Could not load local store settings", e);
       }
+
+      // 2. Cargar desde base de datos y multimedia
+      Promise.all([
+        fetch("/api/admin/settings?key=komi_store_settings").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/admin/settings?key=restaurant_settings").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/admin/media").then((r) => r.json()).catch(() => ({})),
+      ])
+        .then(([storeRes, restRes, mediaRes]) => {
+          if (storeRes?.value) {
+            applyConfig(storeRes.value);
+            try {
+              localStorage.setItem("komi_store_settings", JSON.stringify(storeRes.value));
+            } catch {}
+          } else if (restRes?.value) {
+            applyConfig(restRes.value);
+          }
+
+          // Fallback a multimedia si no hay imágenes asignadas
+          if (mediaRes?.data && Array.isArray(mediaRes.data)) {
+            const mediaLogo = mediaRes.data.find((m: any) => m.section === "logo" && m.is_active);
+            const mediaHero = mediaRes.data.find(
+              (m: any) => (m.section === "hero" || m.section === "background") && m.is_active
+            );
+            if (mediaLogo && (!storeRes?.value?.logo_url && !restRes?.value?.logo_url)) {
+              setLogoUrl(mediaLogo.url);
+            }
+            if (mediaHero && (!storeRes?.value?.banner_url && !restRes?.value?.banner_url)) {
+              setBannerUrl(mediaHero.url);
+            }
+          }
+        })
+        .catch((e) => console.warn("Could not load remote store settings", e))
+        .finally(() => setIsLoading(false));
     }
   }, [slug]);
+
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/media/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (json.url) {
+        setLogoUrl(json.url);
+      }
+    } catch (err) {
+      console.error("Error subiendo logo:", err);
+      alert("Error al subir el logo");
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  };
+
+  const handleUploadBanner = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingBanner(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/media/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (json.url) {
+        setBannerUrl(json.url);
+      }
+    } catch (err) {
+      console.error("Error subiendo banner:", err);
+      alert("Error al subir la portada");
+    } finally {
+      setIsUploadingBanner(false);
+      if (bannerInputRef.current) bannerInputRef.current.value = "";
+    }
+  };
 
   const storeUrl = `${originUrl}/t/${slug}`;
 
@@ -75,11 +175,13 @@ export default function StoreSettingsPage() {
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
+    const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "") || "quebravazo";
     const config = {
       name: storeName.trim(),
-      slug: slug.trim(),
+      slug: cleanSlug,
       whatsapp: whatsapp.trim(),
       address: address.trim(),
       description: description.trim(),
@@ -89,11 +191,76 @@ export default function StoreSettingsPage() {
       yapeNumber: yapeNumber.trim(),
       yapeHolder: yapeHolder.trim(),
       isOpen,
+      logo_url: logoUrl.trim(),
+      banner_url: bannerUrl.trim(),
+      updated_at: new Date().toISOString(),
     };
 
-    localStorage.setItem(`komi_store_settings_${slug}`, JSON.stringify(config));
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    try {
+      // 1. Guardar en Supabase y sincronizar con restaurant_settings
+      await Promise.all([
+        fetch("/api/admin/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            key: "komi_store_settings",
+            value: config,
+          }),
+        }),
+        (async () => {
+          try {
+            const rRes = await fetch("/api/admin/settings?key=restaurant_settings");
+            const rJson = await rRes.json().catch(() => ({}));
+            const currentRest = rJson?.value || {};
+            const updatedRest = {
+              ...currentRest,
+              name: storeName.trim(),
+              slug: cleanSlug,
+              address: address.trim(),
+              phone: whatsapp.trim(),
+              logo_url: logoUrl.trim(),
+              banner_url: bannerUrl.trim(),
+              updated_at: new Date().toISOString(),
+            };
+            localStorage.setItem("restaurant_settings", JSON.stringify(updatedRest));
+            await fetch("/api/admin/settings", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                key: "restaurant_settings",
+                value: updatedRest,
+              }),
+            });
+          } catch (e) {
+            console.warn("Could not sync restaurant_settings", e);
+          }
+        })(),
+      ]);
+
+      // 2. Guardar en localStorage
+      localStorage.setItem("komi_store_settings", JSON.stringify(config));
+      localStorage.setItem(`komi_store_settings_${cleanSlug}`, JSON.stringify(config));
+
+      // 3. Notificar a componentes (como el Sidebar para actualizar el enlace inmediatamente)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("komi_store_settings_updated"));
+      }
+
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3500);
+    } catch (err) {
+      console.error("Error saving settings:", err);
+      // Fallback a localStorage
+      localStorage.setItem("komi_store_settings", JSON.stringify(config));
+      localStorage.setItem(`komi_store_settings_${cleanSlug}`, JSON.stringify(config));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("komi_store_settings_updated"));
+      }
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3500);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -249,6 +416,131 @@ export default function StoreSettingsPage() {
                 className="w-full px-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
               />
             </div>
+
+            {/* Logo de la Tienda */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-300 mb-1">
+                Logo de la Tienda (Top Bar, Portada y Perfil)
+              </label>
+              <div className="flex flex-col sm:flex-row items-center gap-4 bg-stone-950 p-3.5 rounded-xl border border-stone-800">
+                <div className="relative w-16 h-16 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-center overflow-hidden shrink-0">
+                  {logoUrl ? (
+                    <Image src={logoUrl} alt="Logo Preview" fill className="object-contain p-1.5" unoptimized />
+                  ) : (
+                    <Store className="w-7 h-7 text-stone-600" />
+                  )}
+                </div>
+                <div className="flex-1 w-full space-y-2">
+                  <input
+                    type="text"
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="URL o sube un archivo"
+                    className="w-full px-3 py-1.5 bg-stone-900 border border-stone-800 rounded-lg text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadLogo}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      disabled={isUploadingLogo}
+                      onClick={() => logoInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium flex items-center gap-1.5 transition-colors border border-stone-700 cursor-pointer"
+                    >
+                      {isUploadingLogo ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" />
+                          <span>Subiendo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={13} />
+                          <span>Subir Logo</span>
+                        </>
+                      )}
+                    </button>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setLogoUrl("")}
+                        className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-medium transition-colors border border-rose-500/20 cursor-pointer"
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Portada / Banner de la Tienda */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-300 mb-1">
+                Portada / Banner Principal de la Tienda
+              </label>
+              <div className="space-y-3 bg-stone-950 p-3.5 rounded-xl border border-stone-800">
+                <div className="relative aspect-[3/1] w-full rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-center overflow-hidden">
+                  {bannerUrl ? (
+                    <Image src={bannerUrl} alt="Banner Preview" fill className="object-cover" unoptimized />
+                  ) : (
+                    <div className="flex items-center gap-2 text-stone-600 text-xs">
+                      <ImageIcon size={20} />
+                      <span>Sin portada asignada</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                  <input
+                    type="text"
+                    value={bannerUrl}
+                    onChange={(e) => setBannerUrl(e.target.value)}
+                    placeholder="URL del banner o sube un archivo"
+                    className="w-full px-3 py-1.5 bg-stone-900 border border-stone-800 rounded-lg text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      ref={bannerInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadBanner}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      disabled={isUploadingBanner}
+                      onClick={() => bannerInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium flex items-center gap-1.5 transition-colors border border-stone-700 cursor-pointer"
+                    >
+                      {isUploadingBanner ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" />
+                          <span>Subiendo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={13} />
+                          <span>Subir Portada</span>
+                        </>
+                      )}
+                    </button>
+                    {bannerUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setBannerUrl("")}
+                        className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-medium transition-colors border border-rose-500/20 cursor-pointer"
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Card: Opciones de Entrega y Delivery */}
@@ -332,7 +624,7 @@ export default function StoreSettingsPage() {
                 type="text"
                 value={yapeHolder}
                 onChange={(e) => setYapeHolder(e.target.value)}
-                placeholder="Ej. ¡Qué Bravazo! SAC"
+                placeholder="Ej. Komi SAC"
                 className="w-full px-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
               />
             </div>
@@ -368,10 +660,20 @@ export default function StoreSettingsPage() {
           <div className="space-y-3">
             <button
               type="submit"
-              className="w-full py-3.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-black font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+              disabled={isSaving}
+              className="w-full py-3.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] disabled:opacity-50 text-black font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
             >
-              <Save size={17} />
-              <span>Guardar Configuración</span>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Guardando en el Sistema...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={17} />
+                  <span>Guardar Configuración</span>
+                </>
+              )}
             </button>
 
             {savedSuccess && (

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useAuthStore } from "@/lib/stores/auth";
 import { useProductStore } from "@/lib/stores/products";
 import { Product } from "@/types";
+import ProcessPaymentModal from "@/components/pos/ProcessPaymentModal";
 import {
   Package,
   Search,
@@ -31,7 +32,8 @@ import {
   UtensilsCrossed,
   Share2,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Coins
 } from "lucide-react";
 
 // --- FALLBACK RESTAURANT DISHES ---
@@ -198,6 +200,17 @@ export default function POSSection() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
+  const [restaurantName, setRestaurantName] = useState("Que Bravazo! Restobar");
+
+  useEffect(() => {
+    try {
+      const local = localStorage.getItem("restaurant_settings");
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (parsed.name) setRestaurantName(parsed.name);
+      }
+    } catch {}
+  }, []);
 
   // Cart / Venta Actual State
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -219,10 +232,35 @@ export default function POSSection() {
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [clientForm, setClientForm] = useState({ name: "", docNumber: "", phone: "" });
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Mapeo dinámico de categorías (Cobro de táper +S/1 y Enrutamiento KDS)
+  const [categoriesMap, setCategoriesMap] = useState<Record<string, { charges_taper: boolean; send_to_kitchen: boolean }>>({});
+
+  useEffect(() => {
+    fetch("/api/admin/categories")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.data) {
+          const map: Record<string, { charges_taper: boolean; send_to_kitchen: boolean }> = {};
+          res.data.forEach((c: any) => {
+            const val = {
+              charges_taper: c.charges_taper !== false,
+              send_to_kitchen: c.send_to_kitchen !== false,
+            };
+            if (c.id) map[c.id] = val;
+            if (c.slug) map[c.slug] = val;
+            if (c.name) map[c.name.toLowerCase()] = val;
+          });
+          setCategoriesMap(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Initialize store and auth check
   useEffect(() => {
@@ -316,8 +354,20 @@ export default function POSSection() {
   }, [cart]);
 
   const takeawayCharge = useMemo(() => {
-    return orderType === "llevar" ? 2.00 : 0.00;
-  }, [orderType]);
+    if (orderType !== "llevar") return 0.00;
+    let totalTaper = 0;
+    for (const item of cart) {
+      const catKey = (item.product.category_slug || item.product.category || "").toLowerCase();
+      const catConfig = categoriesMap[catKey];
+      const chargesTaper = catConfig !== undefined
+        ? catConfig.charges_taper
+        : !/bebida|gaseosa|refresco|cerveza|trago|jugo|agua|vino|snack/i.test(catKey);
+      if (chargesTaper) {
+        totalTaper += item.quantity * 1.00;
+      }
+    }
+    return totalTaper;
+  }, [orderType, cart, categoriesMap]);
 
   const total = useMemo(() => {
     if (isStaffConsumption) return 0;
@@ -377,32 +427,46 @@ export default function POSSection() {
   };
 
   // Process / Submit Order
-  const handleProcessOrder = async (isFastSale = false) => {
+  const handleProcessOrder = async (
+    isFastSale = false,
+    paymentOverride?: { paymentMethod: PaymentMethod; docType: DocumentType; cashReceived?: number }
+  ) => {
     if (cart.length === 0) {
       showToast("error", "Agrega al menos un producto a la comanda.");
       return;
     }
 
     setSubmitting(true);
+    const finalMethod = paymentOverride?.paymentMethod || paymentMethod;
+    const finalDocType = paymentOverride?.docType || docType;
+    const isPaid = isFastSale || !!paymentOverride;
+
     const orderPayload = {
       waiter_id: user?.uid || "usr_waiter",
       waiter_name: user?.name || "Mesero",
       table_number: orderType === "mesa" ? tableNumber : null,
       order_type: orderType,
-      items: cart.map((c) => ({
-        product_id: c.product.id,
-        title: c.product.title,
-        price: c.product.price,
-        quantity: c.quantity,
-        skip_kitchen: false,
-      })),
+      items: cart.map((c) => {
+        const catKey = (c.product.category_slug || c.product.category || "").toLowerCase();
+        const catConfig = categoriesMap[catKey];
+        const sendToKitchen = catConfig !== undefined
+          ? catConfig.send_to_kitchen
+          : !/bebida|gaseosa|refresco|cerveza|trago|jugo|agua|vino|snack/i.test(catKey);
+        return {
+          product_id: c.product.id,
+          title: c.product.title,
+          price: c.product.price,
+          quantity: c.quantity,
+          skip_kitchen: !sendToKitchen,
+        };
+      }),
       subtotal,
       takeaway_charge: takeawayCharge,
       total,
       customer_name: customerName,
-      payment_method: paymentMethod.toLowerCase(),
-      payment_status: isFastSale ? "paid" : "pending",
-      doc_type: docType,
+      payment_method: finalMethod.toLowerCase(),
+      payment_status: isPaid ? "paid" : "pending",
+      doc_type: finalDocType,
       created_at: new Date().toISOString(),
     };
 
@@ -850,22 +914,78 @@ export default function POSSection() {
 
         {/* Payment & Checkout Section (Bottom) */}
         <div className="p-3.5 bg-stone-950 border-t border-stone-800 space-y-2.5">
-          {/* Método de pago selector */}
-          <div className="space-y-1">
+          {/* Método de pago selector con logos oficiales */}
+          <div className="space-y-1.5">
             <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider block">
               Método de Pago
             </span>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-              className="w-full px-3 py-1.5 bg-stone-900 border border-stone-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-500/50"
-            >
-              <option value="Efectivo"> Efectivo</option>
-              <option value="Yape">Yape</option>
-              <option value="Plin">Plin</option>
-              <option value="Tarjeta"> Tarjeta (POS)</option>
-              <option value="Mixto"> Mixto</option>
-            </select>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("Efectivo")}
+                className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  paymentMethod === "Efectivo"
+                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm"
+                    : "bg-stone-900 border-stone-800 text-stone-400 hover:text-white"
+                }`}
+              >
+                <DollarSign size={13} />
+                <span>Efectivo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("Yape")}
+                className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  paymentMethod === "Yape"
+                    ? "bg-purple-500/20 text-purple-300 border-purple-500/50 shadow-sm"
+                    : "bg-stone-900 border-stone-800 text-stone-400 hover:text-white"
+                }`}
+              >
+                <Image src="/icono-yape.png" alt="Yape" width={16} height={16} className="rounded object-contain" />
+                <span>Yape</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("Plin")}
+                className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  paymentMethod === "Plin"
+                    ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-sm"
+                    : "bg-stone-900 border-stone-800 text-stone-400 hover:text-white"
+                }`}
+              >
+                <Image src="/icono-plin.png" alt="Plin" width={16} height={16} className="rounded object-contain" />
+                <span>Plin</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("Tarjeta")}
+                className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  paymentMethod === "Tarjeta"
+                    ? "bg-blue-500/20 text-blue-300 border-blue-500/50 shadow-sm"
+                    : "bg-stone-900 border-stone-800 text-stone-400 hover:text-white"
+                }`}
+              >
+                <CreditCard size={13} />
+                <span>Tarjeta (POS)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("Mixto")}
+                className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  paymentMethod === "Mixto"
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm"
+                    : "bg-stone-900 border-stone-800 text-stone-400 hover:text-white"
+                }`}
+              >
+                <Coins size={13} />
+                <span>Mixto</span>
+              </button>
+            </div>
           </div>
 
           {/* Cash Received & Change (only if cash or general) */}
@@ -971,9 +1091,9 @@ export default function POSSection() {
           {/* Main Checkout Button (Blue / Amber with Total & DocType) */}
           <button
             type="button"
-            onClick={() => handleProcessOrder(false)}
+            onClick={() => setIsPaymentModalOpen(true)}
             disabled={cart.length === 0 || submitting}
-            className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-amber-500/10 active:scale-[0.99]"
+            className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-amber-500/10 active:scale-[0.99] cursor-pointer"
           >
             <Receipt size={15} />
             <span>Cobrar S/{total.toFixed(2)} • {docType}</span>
@@ -1136,6 +1256,29 @@ export default function POSSection() {
       )}
 
       {/* ============================================================== */}
+      {/* --- MODAL: PROCESAR VENTA / COBRO DE CAJA --- */}
+      {/* ============================================================== */}
+      <ProcessPaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        total={total}
+        subtotal={subtotal}
+        orderTitle={orderType === "mesa" ? `Mesa ${tableNumber}` : "Venta en Caja"}
+        customerName={customerName}
+        initialDocType={docType}
+        initialPaymentMethod={paymentMethod}
+        isSubmitting={submitting}
+        onConfirm={async (data) => {
+          await handleProcessOrder(false, {
+            paymentMethod: data.paymentMethod,
+            docType: data.docType,
+            cashReceived: data.cashReceived,
+          });
+          setIsPaymentModalOpen(false);
+        }}
+      />
+
+      {/* ============================================================== */}
       {/* --- MODAL: COMPROBANTE / TICKET POS EMITIDO --- */}
       {/* ============================================================== */}
       {isReceiptModalOpen && lastCompletedOrder && (
@@ -1146,7 +1289,7 @@ export default function POSSection() {
                 <Check size={24} strokeWidth={3} />
               </div>
               <h3 className="text-base font-extrabold text-white">¡Comprobante Emitido!</h3>
-              <p className="text-xs text-stone-400">¡Qué Bravazo! Restobar</p>
+              <p className="text-xs text-amber-400 font-semibold">{restaurantName}</p>
               <p className="text-[11px] font-mono text-stone-500">ID: {lastCompletedOrder.id}</p>
             </div>
 

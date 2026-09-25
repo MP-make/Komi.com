@@ -105,20 +105,22 @@ export default function CashierLayout({ children }: { children: React.ReactNode 
             <div className="space-y-3">
               {/* Fila 1: Logo + Nombre */}
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl overflow-hidden border border-stone-700 flex-shrink-0 bg-stone-950 flex items-center justify-center shadow-md">
+                <div className="relative w-9 h-9 rounded-full overflow-hidden bg-white shadow-md border border-emerald-500/30 shrink-0">
                   <Image
-                    src="/logo_que_bravazo.png"
-                    alt="Logo"
-                    width={36}
-                    height={36}
-                    className="w-full h-full object-cover"
+                    src="/logokomi.png"
+                    alt="Komi"
+                    fill
+                    className="object-cover scale-[1.2] object-center"
+                    unoptimized
                   />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-black tracking-tight text-white uppercase truncate">
-                    ¡QUÉ BRAVAZO!
-                  </span>
-                  <span className="text-[10px] text-stone-400 font-medium">Panel Caja / POS</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      Caja
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-stone-400 font-medium">Punto de Venta (POS)</span>
                 </div>
               </div>
 
@@ -145,13 +147,13 @@ export default function CashierLayout({ children }: { children: React.ReactNode 
           ) : (
             /* Modo Colapsado (Mini-Rail) */
             <div className="flex flex-col items-center gap-3 py-1">
-              <div className="w-9 h-9 rounded-xl overflow-hidden border border-stone-700 flex-shrink-0 bg-stone-950 flex items-center justify-center shadow-md">
+              <div className="relative w-9 h-9 rounded-full overflow-hidden bg-white shadow-md border border-emerald-500/30 shrink-0">
                 <Image
-                  src="/logo_que_bravazo.png"
-                  alt="Logo"
-                  width={36}
-                  height={36}
-                  className="w-full h-full object-cover"
+                  src="/logokomi.png"
+                  alt="Komi"
+                  fill
+                  className="object-cover scale-[1.2] object-center"
+                  unoptimized
                 />
               </div>
 

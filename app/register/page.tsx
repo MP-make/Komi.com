@@ -17,7 +17,7 @@ import {
   ArrowRight,
   ArrowLeft,
   ShieldCheck,
-  Sparkles,
+  UtensilsCrossed,
 } from "lucide-react";
 import { registerClient } from "@/lib/firebase/auth";
 import { useAuthStore } from "@/lib/stores/auth";
@@ -118,18 +118,20 @@ export default function RegisterPage() {
 
         {/* Encabezado Izquierdo: Branding Komi */}
         <div className="relative z-10 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-xl shadow-lg shadow-amber-500/25 group-hover:scale-105 transition-transform">
-              K
+          <Link href="/" className="inline-flex items-center gap-3 group">
+            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white shadow-xl border-2 border-amber-500/40 group-hover:scale-105 transition-transform shrink-0">
+              <Image
+                src="/logokomi.png"
+                alt="Komi"
+                fill
+                className="object-cover scale-[1.2] object-center"
+                unoptimized
+                priority
+              />
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-2xl font-black tracking-tight text-white">
-                Komi<span className="text-amber-400">.</span>
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                SaaS
-              </span>
-            </div>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-stone-900/80 text-amber-400 border border-amber-500/30 backdrop-blur-md shadow-sm">
+              SaaS Restaurantes
+            </span>
           </Link>
 
           <Link
@@ -200,7 +202,7 @@ export default function RegisterPage() {
           {/* Tarjeta de Prueba Gratis */}
           <div className="p-5 rounded-2xl bg-stone-900/60 backdrop-blur-md border border-stone-800/80 shadow-xl space-y-1.5">
             <h5 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles size={14} />
+              <UtensilsCrossed size={14} />
               Prueba Gratuita de 14 Días
             </h5>
             <p className="text-xs text-stone-300 leading-relaxed">
@@ -243,14 +245,18 @@ export default function RegisterPage() {
         {/* Tarjeta de Formulario de Registro */}
         <div className="relative z-10 w-full max-w-sm sm:max-w-md bg-stone-950/80 backdrop-blur-xl border border-stone-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
           {/* Header del Formulario */}
-          <div className="text-center space-y-1">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-xl shadow-md shadow-amber-500/25">
-                K
+          <div className="text-center space-y-2">
+            <div className="flex justify-center mb-2">
+              <div className="relative w-16 h-16 rounded-full overflow-hidden bg-white shadow-xl border-2 border-amber-500/40">
+                <Image
+                  src="/logokomi.png"
+                  alt="Komi"
+                  fill
+                  className="object-cover scale-[1.2] object-center"
+                  unoptimized
+                  priority
+                />
               </div>
-              <span className="text-2xl font-black tracking-tight text-white">
-                Komi<span className="text-amber-400">.</span>
-              </span>
             </div>
             <h2 className="text-xl font-bold text-white tracking-tight">Crear Cuenta de Negocio</h2>
             <p className="text-xs text-stone-400">

@@ -13,7 +13,7 @@ export async function GET() {
     if (error && error.code !== 'PGRST116') {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ value: data?.value ?? { qr_url: '', name: '¡Qué Bravazo! Restobar' } });
+    return NextResponse.json({ value: data?.value ?? { qr_url: '', name: 'Komi Restobar' } });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Error interno' }, { status: 500 });
   }

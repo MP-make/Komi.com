@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Sparkles, ArrowRight, Smartphone, MessageCircle } from "lucide-react";
+import { UtensilsCrossed, ArrowRight, Smartphone, MessageCircle } from "lucide-react";
 
 export default function SaasCta() {
   return (
@@ -13,7 +13,7 @@ export default function SaasCta() {
 
           <div className="relative max-w-3xl mx-auto space-y-6">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
-              <Sparkles className="w-3.5 h-3.5" />
+              <UtensilsCrossed className="w-3.5 h-3.5" />
               Empieza Hoy Mismo
             </span>
 

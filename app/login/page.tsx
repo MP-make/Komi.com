@@ -11,7 +11,7 @@ import {
   Loader2,
   CreditCard,
   CheckCircle2,
-  Sparkles,
+  UtensilsCrossed,
   ArrowRight,
   ShieldCheck,
 } from "lucide-react";
@@ -69,33 +69,35 @@ export default function LoginPage() {
       {/* LADO IZQUIERDO: SHOWCASE RESTAURANTE (Solo en Desktop / Tablet horizontal) */}
       {/* ======================================================== */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] relative flex-col justify-between p-10 xl:p-14 overflow-hidden border-r border-stone-800/80">
-        {/* Foto de Restaurante de fondo */}
+        {/* Foto de Restaurante de fondo oficial */}
         <div className="absolute inset-0 bg-stone-950">
           <Image
-            src="/Fondo restaurante.png"
+            src="/login-imagen.png"
             alt="Restaurante Komi"
             fill
-            className="object-cover opacity-35 filter blur-[0.5px]"
+            className="object-cover object-center"
             priority
           />
-          {/* Degradado oscuro para que el texto sea nítido y legible */}
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/80 to-stone-950/40" />
+          {/* Degradado para nitidez y contraste premium */}
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950/95 via-stone-950/40 to-stone-950/60" />
         </div>
 
-        {/* Encabezado Izquierdo: Branding Komi */}
+        {/* Encabezado Izquierdo: Branding Komi con logo oficial */}
         <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-xl shadow-lg shadow-amber-500/25 group-hover:scale-105 transition-transform">
-              K
+          <Link href="/" className="inline-flex items-center gap-3 group">
+            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white shadow-xl border-2 border-amber-500/40 group-hover:scale-105 transition-transform shrink-0">
+              <Image
+                src="/logokomi.png"
+                alt="Komi"
+                fill
+                className="object-cover scale-[1.2] object-center"
+                unoptimized
+                priority
+              />
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-2xl font-black tracking-tight text-white">
-                Komi<span className="text-amber-400">.</span>
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                SaaS
-              </span>
-            </div>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-stone-900/80 text-amber-400 border border-amber-500/30 backdrop-blur-md shadow-sm">
+              SaaS Restaurantes
+            </span>
           </Link>
         </div>
 
@@ -152,7 +154,7 @@ export default function LoginPage() {
           {/* Tarjeta Glassmorphic explicativa "¿Qué es Komi?" */}
           <div className="p-5 rounded-2xl bg-stone-900/60 backdrop-blur-md border border-stone-800/80 shadow-xl space-y-1.5">
             <h5 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles size={14} />
+              <UtensilsCrossed size={14} />
               ¿Qué es Komi?
             </h5>
             <p className="text-xs text-stone-300 leading-relaxed">
@@ -195,14 +197,18 @@ export default function LoginPage() {
         {/* Tarjeta de Formulario de Login */}
         <div className="relative z-10 w-full max-w-sm sm:max-w-md bg-stone-950/80 backdrop-blur-xl border border-stone-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
           {/* Header del Formulario */}
-          <div className="text-center space-y-1">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black text-xl shadow-md shadow-amber-500/25">
-                K
+          <div className="text-center space-y-2">
+            <div className="flex justify-center mb-2">
+              <div className="relative w-16 h-16 rounded-full overflow-hidden bg-white shadow-xl border-2 border-amber-500/40">
+                <Image
+                  src="/logokomi.png"
+                  alt="Komi"
+                  fill
+                  className="object-cover scale-[1.2] object-center"
+                  unoptimized
+                  priority
+                />
               </div>
-              <span className="text-2xl font-black tracking-tight text-white">
-                Komi<span className="text-amber-400">.</span>
-              </span>
             </div>
             <h2 className="text-xl font-bold text-white tracking-tight">Iniciar Sesión</h2>
             <p className="text-xs text-stone-400">

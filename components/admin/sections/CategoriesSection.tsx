@@ -12,6 +12,8 @@ interface Category {
   is_active: boolean;
   menu_type: string;
   image: string;
+  charges_taper?: boolean;
+  send_to_kitchen?: boolean;
 }
 
 const BASE_MENU_TYPES = [
@@ -25,7 +27,17 @@ function getMenuStyle(value: string, extraTypes: { value: string; label: string;
   return all.find((m) => m.value === value) || { value, label: value.charAt(0).toUpperCase() + value.slice(1), color: "bg-purple-500/10 text-purple-400" };
 }
 
-const emptyForm = { name: "", slug: "", description: "", menu_type: "ambos", display_order: 0, is_active: true, image: "" };
+const emptyForm = {
+  name: "",
+  slug: "",
+  description: "",
+  menu_type: "ambos",
+  display_order: 0,
+  is_active: true,
+  image: "",
+  charges_taper: true,
+  send_to_kitchen: true,
+};
 
 export default function AdminCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -98,6 +110,8 @@ export default function AdminCategories() {
       display_order: cat.display_order,
       is_active: cat.is_active,
       image: cat.image || "",
+      charges_taper: cat.charges_taper !== false,
+      send_to_kitchen: cat.send_to_kitchen !== false,
     });
     setShowForm(true);
   }
@@ -139,6 +153,30 @@ export default function AdminCategories() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_active: !cat.is_active }),
+      });
+      await fetchCategories();
+    } catch {}
+  }
+
+  async function handleToggleTaper(cat: Category) {
+    try {
+      const nextVal = cat.charges_taper === false ? true : false;
+      await fetch(`/api/admin/categories/${cat.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ charges_taper: nextVal }),
+      });
+      await fetchCategories();
+    } catch {}
+  }
+
+  async function handleToggleKitchen(cat: Category) {
+    try {
+      const nextVal = cat.send_to_kitchen === false ? true : false;
+      await fetch(`/api/admin/categories/${cat.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ send_to_kitchen: nextVal }),
       });
       await fetchCategories();
     } catch {}
@@ -227,6 +265,8 @@ export default function AdminCategories() {
                 <th className="text-left px-2 sm:px-4 py-3 text-stone-500 font-medium text-xs uppercase tracking-wider">Nombre</th>
                 <th className="text-left px-2 sm:px-4 py-3 text-stone-500 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Slug</th>
                 <th className="text-left px-2 sm:px-4 py-3 text-stone-500 font-medium text-xs uppercase tracking-wider">Menú</th>
+                <th className="text-left px-2 sm:px-4 py-3 text-stone-500 font-medium text-xs uppercase tracking-wider">Táper (+S/1)</th>
+                <th className="text-left px-2 sm:px-4 py-3 text-stone-500 font-medium text-xs uppercase tracking-wider">Destino</th>
                 <th className="text-left px-2 sm:px-4 py-3 text-stone-500 font-medium text-xs uppercase tracking-wider w-16 sm:w-20">Activo</th>
                 <th className="text-right px-2 sm:px-4 py-3 text-stone-500 font-medium text-xs uppercase tracking-wider w-20 sm:w-24">Acciones</th>
               </tr>
@@ -265,6 +305,54 @@ export default function AdminCategories() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${menu.color}`}>
                           {menu.label}
                         </span>
+                      </td>
+                      <td className="px-2 sm:px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTaper(cat)}
+                          title={cat.charges_taper !== false ? "Cobra S/1.00 de táper para llevar (clic para alternar)" : "Exento de táper para llevar (clic para alternar)"}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold border transition-all cursor-pointer ${
+                            cat.charges_taper !== false
+                              ? "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
+                              : "bg-stone-800 text-stone-400 border-stone-700 hover:border-stone-600"
+                          }`}
+                        >
+                          {cat.charges_taper !== false ? (
+                            <>
+                              <span>🥡</span>
+                              <span>+S/ 1.00</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>🚫</span>
+                              <span>Sin táper</span>
+                            </>
+                          )}
+                        </button>
+                      </td>
+                      <td className="px-2 sm:px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleKitchen(cat)}
+                          title={cat.send_to_kitchen !== false ? "Va a Cocina KDS (clic para cambiar a Venta Directa)" : "Venta Directa sin cocina (clic para cambiar a Cocina KDS)"}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold border transition-all cursor-pointer ${
+                            cat.send_to_kitchen !== false
+                              ? "bg-orange-500/10 text-orange-400 border-orange-500/30 hover:bg-orange-500/20"
+                              : "bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20"
+                          }`}
+                        >
+                          {cat.send_to_kitchen !== false ? (
+                            <>
+                              <span>👨‍🍳</span>
+                              <span>Cocina (KDS)</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>⚡</span>
+                              <span>Venta Directa</span>
+                            </>
+                          )}
+                        </button>
                       </td>
                       <td className="px-2 sm:px-4 py-3">
                         <button
@@ -368,6 +456,92 @@ export default function AdminCategories() {
                   placeholder="O escribe un tipo personalizado"
                 />
               </div>
+
+              {/* Cobro de Táper para Llevar (+S/ 1.00) */}
+              <div className="p-3.5 rounded-xl bg-stone-850 bg-stone-800/80 border border-stone-700/80 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-bold text-white flex items-center gap-1.5">
+                      <span>🥡</span>
+                      <span>Cobro de táper para llevar (+S/ 1.00)</span>
+                    </label>
+                    <p className="text-[11px] text-stone-400">
+                      Aplica el costo de empaque térmico en pedidos Para Llevar. Desactivar para bebidas o productos ya empacados.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, charges_taper: !form.charges_taper })}
+                    className={`w-10 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 ${
+                      form.charges_taper ? "bg-amber-500" : "bg-stone-700"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        form.charges_taper ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+                <div className="text-[11px] font-semibold pt-1 border-t border-stone-700/50">
+                  {form.charges_taper ? (
+                    <span className="text-amber-400">✓ Cobra +S/ 1.00 por táper en pedidos para llevar</span>
+                  ) : (
+                    <span className="text-stone-400">Exento de costo de táper</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Destino de la comanda: Cocina KDS vs Venta Directa */}
+              <div className="p-3.5 rounded-xl bg-stone-800/80 border border-stone-700/80 space-y-2.5">
+                <div>
+                  <label className="text-sm font-bold text-white block">
+                    Destino del Pedido / Flujo Operativo
+                  </label>
+                  <p className="text-[11px] text-stone-400 mt-0.5">
+                    ¿Requiere preparación en cocina o se despacha directamente en barra/caja?
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, send_to_kitchen: true })}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      form.send_to_kitchen
+                        ? "bg-orange-500/15 border-orange-500 text-white shadow-sm ring-1 ring-orange-500/50"
+                        : "bg-stone-900 border-stone-700 text-stone-400 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <span>👨‍🍳</span>
+                      <span>Cocina (KDS)</span>
+                    </div>
+                    <p className="text-[10px] text-stone-400 mt-1 leading-snug">
+                      Va a pantalla del chef y comanda de cocina.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, send_to_kitchen: false })}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      !form.send_to_kitchen
+                        ? "bg-blue-500/15 border-blue-500 text-white shadow-sm ring-1 ring-blue-500/50"
+                        : "bg-stone-900 border-stone-700 text-stone-400 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <span>⚡</span>
+                      <span>Venta Directa</span>
+                    </div>
+                    <p className="text-[10px] text-stone-400 mt-1 leading-snug">
+                      Despacho inmediato (bebidas, snacks, etc).
+                    </p>
+                  </button>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <label className="text-sm font-medium text-stone-300">Activo</label>

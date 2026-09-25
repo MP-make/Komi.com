@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         order_type: payload.type === 'DELIVERY' ? 'delivery' : (payload.type === 'LLEVAR' ? 'llevar' : 'mesa'),
         items: payload.items || [],
         subtotal: payload.subtotal || payload.total || 0,
-        takeaway_charge: payload.deliveryCost || 0,
+        takeaway_charge: payload.taperCost !== undefined ? payload.taperCost : (payload.takeaway_charge !== undefined ? payload.takeaway_charge : 0),
         total: payload.total || 0,
         status: 'pending',
         payment_method: (payload.paymentMethod || 'efectivo').toLowerCase().includes('yape')

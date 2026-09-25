@@ -6,6 +6,7 @@ import { useAuthStore } from "@/lib/stores/auth";
 import Image from "next/image";
 import { X, CheckCircle, QrCode, DollarSign, Plus, Minus, Clock, CookingPot, Pencil, Wallet, Package, ClipboardList, BarChart3 } from "lucide-react";
 import DatePicker from "@/components/shared/DatePicker";
+import ProcessPaymentModal from "@/components/pos/ProcessPaymentModal";
 
 type DateFilterType = "today" | "yesterday" | "week" | "date";
 
@@ -98,6 +99,7 @@ export default function MisPedidosPage() {
   const [editItems, setEditItems] = useState<OrderItem[] | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [showYapeModal, setShowYapeModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [dateFilter, setDateFilter] = useState<DateFilterType>("today");
   const [customDate, setCustomDate] = useState("");
   const [view, setView] = useState<"pedidos" | "total">("pedidos");
@@ -132,15 +134,16 @@ export default function MisPedidosPage() {
     }
   }
 
-  async function handlePayment(orderId: string, method: "efectivo" | "yape") {
+  async function handlePayment(orderId: string, method: string) {
     try {
       const res = await fetch(`/api/waiter/orders/${orderId}/payment`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payment_method: method }),
+        body: JSON.stringify({ payment_method: method.toLowerCase() }),
       });
       if (!res.ok) throw new Error();
       setShowPayment(false);
+      setShowPaymentModal(false);
       setSelectedOrder(null);
       fetchOrders();
     } catch {
@@ -587,19 +590,13 @@ export default function MisPedidosPage() {
                   {showPayment && selectedOrder.payment_status === "pending" && (
                     <div className="space-y-2 pt-2 border-t border-stone-800/50">
                       <p className="text-[11px] sm:text-xs text-stone-400 text-center">Completar pago</p>
-                      <div className="flex gap-2">
-                        <button onClick={() => handlePayment(selectedOrder.id, "efectivo")} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2">
-                          <DollarSign size={16} className="sm:w-5 sm:h-5" />
-                          Efectivo
-                        </button>
-                        <button
-                          onClick={() => setShowYapeModal(true)}
-                          className="flex-1 py-3 bg-sky-600 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2"
-                        >
-                          <QrCode size={16} className="sm:w-5 sm:h-5" />
-                          Yape
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setShowPaymentModal(true)}
+                        className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 active:scale-[0.99] transition-all cursor-pointer"
+                      >
+                        <DollarSign size={16} className="sm:w-5 sm:h-5" />
+                        <span>Cobrar Cuenta S/ {selectedOrder.total.toFixed(2)}</span>
+                      </button>
                     </div>
                   )}
                 </>
@@ -621,44 +618,18 @@ export default function MisPedidosPage() {
         </div>
       )}
 
-      {/* Yape QR Modal */}
-      {showYapeModal && selectedOrder && orderYape && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowYapeModal(false)} />
-          <div className="relative bg-stone-900 border border-stone-800 rounded-2xl w-full max-w-sm mx-auto overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-stone-800">
-              <h3 className="text-sm font-bold">Pagar con Yape</h3>
-              <button onClick={() => setShowYapeModal(false)} className="p-1 text-stone-400 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6 flex flex-col items-center">
-              <div>
-                {orderYape.qr_url ? (
-                  <Image src={orderYape.qr_url} alt="QR Yape" width={300} height={300} className="rounded-lg" unoptimized />
-                ) : (
-                  <div className="w-[300px] h-[300px] bg-stone-200 rounded-lg flex items-center justify-center text-stone-400 text-sm">
-                    QR no configurado
-                  </div>
-                )}
-              </div>
-              <p className="text-sm font-medium text-white mt-4">{orderYape.name}</p>
-              <p className="text-[11px] text-stone-500 mt-1 text-center">Escanea el código QR con tu app Yape para pagar</p>
-            </div>
-            <div className="px-6 pb-4 text-center">
-              <p className="text-xs text-stone-400">Total a pagar</p>
-              <p className="text-2xl font-black text-amber-500">S/ {selectedOrder.total.toFixed(2)}</p>
-            </div>
-            <div className="flex gap-3 px-4 pb-4">
-              <button onClick={() => setShowYapeModal(false)} className="flex-1 py-3 bg-stone-800 text-stone-300 rounded-xl text-sm font-medium">
-                Cancelar
-              </button>
-              <button onClick={() => { setShowYapeModal(false); handlePayment(selectedOrder.id, "yape"); }} className="flex-1 py-3 bg-sky-600 text-white rounded-xl text-sm font-bold">
-                Confirmar pago
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Modal de Pago / Cobro Unificado Komi */}
+      {showPaymentModal && selectedOrder && (
+        <ProcessPaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          total={selectedOrder.total}
+          orderTitle={selectedOrder.order_type === "mesa" ? `Mesa ${selectedOrder.table_number}` : "Pedido Para Llevar"}
+          customerName={selectedOrder.customer_name}
+          onConfirm={async (data) => {
+            await handlePayment(selectedOrder.id, data.paymentMethod);
+          }}
+        />
       )}
 
     </div>
