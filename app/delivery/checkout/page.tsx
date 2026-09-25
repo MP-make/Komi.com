@@ -66,7 +66,7 @@ export default function CheckoutPage() {
   const taperCost = items.reduce((sum, item) => {
     const catSlug = (item.category_slug || '').toLowerCase().trim();
     const catName = (item.category || '').toLowerCase().trim();
-    const config = (catSlug && categoriesMap[catSlug]) || (catName && categoriesMap[catName]);
+    const config = categoriesMap[catSlug] || categoriesMap[catName];
     const chargesTaper = config !== undefined
       ? config.charges_taper
       : !/bebida|gaseosa|refresco|cerveza|trago|jugo|agua|vino|snack/i.test(`${catSlug} ${catName}`);

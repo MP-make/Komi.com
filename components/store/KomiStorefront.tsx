@@ -246,9 +246,9 @@ export default function KomiStorefront({ slug = "demo" }: KomiStorefrontProps) {
 
     // 3. Comprobar en el mapa de configuración de categorías por id, slug o nombre
     const config =
-      (catId && categoriesMap[catId]) ||
-      (catSlug && categoriesMap[catSlug]) ||
-      (catName && categoriesMap[catName]);
+      (catId ? categoriesMap[catId] : undefined) ||
+      (catSlug ? categoriesMap[catSlug] : undefined) ||
+      (catName ? categoriesMap[catName] : undefined);
 
     if (config !== undefined && config.charges_taper !== undefined) {
       return Boolean(config.charges_taper);
