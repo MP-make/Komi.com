@@ -60,13 +60,13 @@ export default function SaasHero() {
               <ArrowRight className="w-4 h-4" />
             </Link>
 
-            <a
-              href="#demos"
+            <Link
+              href="/demos"
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-4 text-base font-semibold text-neutral-200 hover:text-white bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-700/80 rounded-xl transition-all"
             >
               <Play className="w-4 h-4 text-orange-400 fill-orange-400" />
               <span>Ver Demos en Vivo</span>
-            </a>
+            </Link>
           </div>
 
           {/* Badges de confianza */}
@@ -93,56 +93,56 @@ export default function SaasHero() {
         {/* Simulador Interactivo de Módulos (Hero Interactive Preview) */}
         <div className="mt-14 max-w-5xl mx-auto">
           {/* Barra de pestañas */}
-          <div className="flex items-center justify-center gap-2 p-1.5 bg-neutral-900/90 border border-neutral-800 rounded-2xl max-w-2xl mx-auto shadow-2xl overflow-x-auto">
+          <div className="flex items-center justify-center gap-1.5 p-1.5 bg-neutral-900/90 border border-neutral-800 rounded-2xl max-w-4xl mx-auto shadow-2xl">
             <button
               type="button"
               onClick={() => setActiveTab('waiter')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer flex-1 justify-center ${
                 activeTab === 'waiter'
                   ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md'
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
               }`}
             >
-              <Smartphone className="w-4 h-4" />
+              <Smartphone className="w-4 h-4 shrink-0" />
               <span>1. Comandero Mesero</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('chef')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer flex-1 justify-center ${
                 activeTab === 'chef'
                   ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md'
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
               }`}
             >
-              <ChefHat className="w-4 h-4" />
+              <ChefHat className="w-4 h-4 shrink-0" />
               <span>2. Cocina KDS</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('menu')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer flex-1 justify-center ${
                 activeTab === 'menu'
                   ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md'
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
               }`}
             >
-              <Store className="w-4 h-4" />
+              <Store className="w-4 h-4 shrink-0" />
               <span>3. Carta QR / Delivery</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('owner')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer flex-1 justify-center ${
                 activeTab === 'owner'
                   ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md'
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
               }`}
             >
-              <BarChart3 className="w-4 h-4" />
+              <BarChart3 className="w-4 h-4 shrink-0" />
               <span>4. Panel de Dueño</span>
             </button>
           </div>

@@ -38,7 +38,8 @@ export default function Navbar() {
     pathname === '/register' ||
     pathname?.startsWith('/delivery/checkout') ||
     pathname?.startsWith('/admin') ||
-    pathname?.startsWith('/owner');
+    pathname?.startsWith('/owner') ||
+    pathname?.startsWith('/demos');
 
   const isOnMenu = pathname === '/menu';
 

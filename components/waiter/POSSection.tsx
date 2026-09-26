@@ -33,8 +33,11 @@ import {
   Share2,
   Layers,
   ArrowRight,
-  Coins
+  Coins,
+  Loader2,
+  User,
 } from "lucide-react";
+import { useDniRucLookup } from "@/hooks/useDniRucLookup";
 
 // --- FALLBACK RESTAURANT DISHES ---
 const DEFAULT_RESTAURANT_PRODUCTS: Product[] = [
@@ -237,6 +240,95 @@ export default function POSSection() {
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Hook DNI / RUC para el POS
+  const { lookup: lookupPosClient, loading: isLookingUpPosClient, data: lookupPosData, clear: clearLookupPosClient } = useDniRucLookup();
+
+  // Estados del Modal "Buscar Cliente" (RENIEC / SUNAT - Idéntico a imagen de referencia)
+  const [isSearchClientModalOpen, setIsSearchClientModalOpen] = useState(false);
+  const [searchClientQuery, setSearchClientQuery] = useState("");
+  const [assignedClientDoc, setAssignedClientDoc] = useState<{
+    type: 'dni' | 'ruc' | 'ninguno';
+    number: string;
+    name: string;
+    address?: string;
+  } | null>(null);
+
+  // Lista local de clientes para autocompletado instantáneo por nombre o documento
+  const [registeredClients, setRegisteredClients] = useState<Array<{
+    name: string;
+    docNumber: string;
+    docType: 'dni' | 'ruc';
+    phone?: string;
+    address?: string;
+  }>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("komi_pos_clients");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [
+      { name: "CLIENTE GENERAL", docNumber: "00000000", docType: "dni" },
+      { name: "PAREDES VERA NAYELI ALIDA", docNumber: "72512785", docType: "dni" },
+    ];
+  });
+
+  const handleSearchClientInput = async (val: string) => {
+    setSearchClientQuery(val);
+    const clean = val.replace(/\D/g, "");
+    if (clean.length === 8) {
+      await lookupPosClient("dni", clean);
+    } else if (clean.length === 11) {
+      await lookupPosClient("ruc", clean);
+    } else {
+      clearLookupPosClient();
+    }
+  };
+
+  const handleAssignClient = (client: { name: string; number: string; type: 'dni' | 'ruc'; address?: string }) => {
+    setCustomerName(client.name);
+    const docInfo = {
+      type: client.type,
+      number: client.number,
+      name: client.name,
+      address: client.address,
+    };
+    setAssignedClientDoc(docInfo);
+    setDocType(client.type === "ruc" ? "FACTURA" : "BOLETA");
+
+    // Guardar en clientes registrados si no existe
+    setRegisteredClients((prev) => {
+      const exists = prev.some((c) => c.docNumber === client.number);
+      const updated = exists
+        ? prev
+        : [
+            {
+              name: client.name,
+              docNumber: client.number,
+              docType: client.type,
+              address: client.address,
+            },
+            ...prev,
+          ];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("komi_pos_clients", JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    setIsSearchClientModalOpen(false);
+    showToast("success", `Cliente "${client.name}" asignado.`);
+  };
+
+  // Clientes locales filtrados por texto (si escribe nombres)
+  const filteredLocalClients = useMemo(() => {
+    const q = searchClientQuery.trim().toLowerCase();
+    if (!q || q.length < 2) return [];
+    return registeredClients.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.docNumber.includes(q)
+    );
+  }, [searchClientQuery, registeredClients]);
 
   // Mapeo dinámico de categorías (Cobro de táper +S/1 y Enrutamiento KDS)
   const [categoriesMap, setCategoriesMap] = useState<Record<string, { charges_taper: boolean; send_to_kitchen: boolean }>>({});
@@ -756,55 +848,90 @@ export default function POSSection() {
           </div>
         </div>
 
-        {/* Client & Document Selector Section (Image 3 Match) */}
-        <div className="p-3.5 bg-stone-950/40 border-b border-stone-800 space-y-2.5">
-          {/* Client Search Row */}
-          <div className="flex items-center gap-1.5">
-            <div className="relative flex-1">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500" />
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Buscar Cliente..."
-                className="w-full pl-8 pr-2.5 py-1.5 bg-stone-950 border border-stone-800 rounded-xl text-xs text-white placeholder-stone-500 focus:outline-none focus:border-amber-500/50"
-              />
-            </div>
+        {/* Client & Document Selector Section (Exacto a las capturas) */}
+        <div className="p-3 bg-stone-950/70 border-b border-stone-800 space-y-2">
+          {/* Row: Buscar Cliente Input + Botón Plus + Pills de Comprobante */}
+          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+            {/* Input Trigger para Modal Buscar Cliente */}
             <button
-              onClick={() => setIsAddClientModalOpen(true)}
-              className="px-2.5 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-700/60 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors"
-              title="Registrar nuevo cliente"
+              type="button"
+              onClick={() => {
+                setSearchClientQuery("");
+                clearLookupPosClient();
+                setIsSearchClientModalOpen(true);
+              }}
+              className="flex-1 min-w-[140px] flex items-center justify-between px-3 py-1.5 bg-stone-950 border border-stone-800 hover:border-stone-700 rounded-xl text-xs transition text-left cursor-pointer group shadow-inner"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Search size={13} className="text-stone-500 shrink-0 group-hover:text-amber-400 transition-colors" />
+                {assignedClientDoc ? (
+                  <span className="font-bold text-white text-[11px] truncate flex items-center gap-1">
+                    <User size={12} className="text-blue-400 shrink-0" />
+                    <span className="truncate">{assignedClientDoc.name}</span>
+                    <span className="text-[10px] text-stone-400 font-mono">({assignedClientDoc.number})</span>
+                  </span>
+                ) : customerName && customerName !== "Cliente sin registrar" && customerName !== "Cliente General" ? (
+                  <span className="font-bold text-white text-[11px] truncate">{customerName}</span>
+                ) : (
+                  <span className="text-stone-500 font-medium text-[11px]">Buscar Cliente...</span>
+                )}
+              </div>
+              {assignedClientDoc && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAssignedClientDoc(null);
+                    setCustomerName("Cliente sin registrar");
+                    setDocType("NTV");
+                  }}
+                  className="p-0.5 text-stone-500 hover:text-rose-400 rounded transition-colors ml-1"
+                  title="Quitar cliente"
+                >
+                  <X size={12} />
+                </span>
+              )}
+            </button>
+
+            {/* Botón [+] para registrar / buscar */}
+            <button
+              type="button"
+              onClick={() => {
+                setSearchClientQuery("");
+                clearLookupPosClient();
+                setIsSearchClientModalOpen(true);
+              }}
+              className="w-7 h-7 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-700/60 flex items-center justify-center transition shrink-0 cursor-pointer"
+              title="Buscar o registrar cliente"
             >
               <Plus size={13} />
-              <span>Agregar</span>
             </button>
-          </div>
 
-          {/* Document Type Pills (Image 3: BOLETA, FACTURA, NOTA DE VENTA, COTIZACIÓN) */}
-          <div className="grid grid-cols-4 gap-1 text-[10px] font-bold">
-            {(["BOLETA", "FACTURA", "NTV", "COTIZACIÓN"] as DocumentType[]).map((type) => {
-              const active = docType === type;
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setDocType(type)}
-                  className={`py-1 rounded-lg border transition-all text-center ${
-                    active
-                      ? type === "BOLETA"
-                        ? "bg-sky-500 text-black border-sky-400 font-extrabold"
-                        : type === "FACTURA"
-                        ? "bg-emerald-500 text-black border-emerald-400 font-extrabold"
-                        : type === "NTV"
-                        ? "bg-purple-600 text-white border-purple-500 font-extrabold"
-                        : "bg-amber-500 text-black border-amber-400 font-extrabold"
-                      : "bg-stone-900 text-stone-400 border-stone-800 hover:text-stone-200"
-                  }`}
-                >
-                  {type === "NTV" ? "NOTA VENTA" : type}
-                </button>
-              );
-            })}
+            {/* Document Type Pills (BOLETA, FACTURA, NOTA DE VENTA, COTIZACIÓN) */}
+            <div className="flex items-center gap-1 text-[10px] font-bold shrink-0">
+              {(["BOLETA", "FACTURA", "NTV", "COTIZACIÓN"] as DocumentType[]).map((type) => {
+                const active = docType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setDocType(type)}
+                    className={`px-2 py-1 rounded-lg border transition-all text-center whitespace-nowrap cursor-pointer ${
+                      active
+                        ? type === "BOLETA"
+                          ? "bg-sky-500/20 text-sky-300 border-sky-400 font-black shadow-sm"
+                          : type === "FACTURA"
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-400 font-black shadow-sm"
+                          : type === "NTV"
+                          ? "bg-purple-600/30 text-purple-200 border-purple-400 font-black shadow-sm"
+                          : "bg-amber-500/20 text-amber-300 border-amber-400 font-black shadow-sm"
+                        : "bg-stone-900/80 text-stone-400 border-stone-800 hover:text-stone-200 hover:border-stone-700"
+                    }`}
+                  >
+                    {type === "NTV" ? "NOTA DE VENTA" : type}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -1125,6 +1252,160 @@ export default function POSSection() {
       )}
 
       {/* ============================================================== */}
+      {/* --- MODAL: BUSCAR CLIENTE (RENIEC / SUNAT - Exacto a imagen) --- */}
+      {/* ============================================================== */}
+      {isSearchClientModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-lg p-6 sm:p-7 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Buscar Cliente
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsSearchClientModalOpen(false)}
+                className="p-1.5 text-stone-400 hover:text-white rounded-xl hover:bg-stone-800 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Input de Búsqueda */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
+              <input
+                type="text"
+                autoFocus
+                value={searchClientQuery}
+                onChange={(e) => handleSearchClientInput(e.target.value)}
+                placeholder="72512785"
+                className="w-full pl-12 pr-10 py-3.5 bg-stone-950 border border-stone-800 rounded-2xl text-white text-sm sm:text-base font-mono placeholder-stone-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-inner"
+              />
+              {searchClientQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchClientQuery("");
+                    clearLookupPosClient();
+                  }}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-stone-500 hover:text-white cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Buscando en RENIEC o SUNAT (Exacto a Imagen 1) */}
+            {isLookingUpPosClient && (
+              <div className="flex items-center gap-2.5 text-xs text-stone-300 py-3 px-3.5 bg-stone-950/60 rounded-xl border border-stone-800/80 animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                <span>
+                  Buscando {searchClientQuery.replace(/\D/g, "")} en{" "}
+                  <strong className="text-blue-400">
+                    {searchClientQuery.replace(/\D/g, "").length === 11 ? "SUNAT" : "RENIEC"}
+                  </strong>...
+                </span>
+              </div>
+            )}
+
+            {/* Resultado Encontrado (Exacto a Imagen 2) */}
+            {lookupPosData && !isLookingUpPosClient && (
+              <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
+                    {lookupPosData.type === "ruc" ? <Building2 size={20} /> : <User size={20} />}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-tight truncate">
+                      {lookupPosData.name}
+                    </h4>
+                    <p className="text-[11px] text-stone-400 font-medium">
+                      {lookupPosData.type === "ruc" ? "RUC" : "DNI"}: {lookupPosData.number} ·{" "}
+                      <span className="text-blue-300 font-bold">
+                        {lookupPosData.type === "ruc" ? "SUNAT" : "RENIEC"}
+                      </span>
+                      {lookupPosData.estado ? ` · ${lookupPosData.estado}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleAssignClient({
+                      name: lookupPosData.name,
+                      number: lookupPosData.number,
+                      type: lookupPosData.type,
+                      address: lookupPosData.direccion,
+                    })
+                  }
+                  className="text-xs font-bold text-blue-400 hover:text-blue-300 hover:underline shrink-0 px-2 py-1 cursor-pointer"
+                >
+                  Crear y asignar
+                </button>
+              </div>
+            )}
+
+            {/* Clientes Locales Filtrados */}
+            {!isLookingUpPosClient && !lookupPosData && filteredLocalClients.length > 0 && (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                <p className="text-[10px] font-bold text-stone-500 uppercase px-1">Clientes Registrados</p>
+                {filteredLocalClients.map((c) => (
+                  <div
+                    key={c.docNumber + c.name}
+                    onClick={() => handleAssignClient(c)}
+                    className="p-2.5 bg-stone-950 hover:bg-stone-800/80 border border-stone-800 rounded-xl flex items-center justify-between gap-2 cursor-pointer transition"
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <div className="w-7 h-7 rounded-full bg-stone-800 text-stone-300 flex items-center justify-center shrink-0 text-xs">
+                        {c.docType === "ruc" ? <Building2 size={13} /> : <User size={13} />}
+                      </div>
+                      <div className="truncate">
+                        <p className="text-xs font-bold text-white uppercase truncate">{c.name}</p>
+                        <p className="text-[10px] text-stone-400 font-mono">
+                          {c.docType.toUpperCase()}: {c.docNumber}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-blue-400 hover:underline shrink-0">
+                      Asignar
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Botón Principal: Crear Nuevo Cliente (Exacto a la imagen) */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsSearchClientModalOpen(false);
+                setClientForm({ name: "", docNumber: searchClientQuery.replace(/\D/g, ""), phone: "" });
+                setIsAddClientModalOpen(true);
+              }}
+              className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 transition shadow-lg shadow-blue-600/20 active:scale-[0.99] cursor-pointer"
+            >
+              <Plus size={16} />
+              <span>Crear Nuevo Cliente</span>
+            </button>
+
+            {/* Botón Texto: Continuar sin cliente (Exacto a la imagen) */}
+            <button
+              type="button"
+              onClick={() => {
+                setCustomerName("Cliente General");
+                setAssignedClientDoc(null);
+                setDocType("BOLETA");
+                setIsSearchClientModalOpen(false);
+              }}
+              className="block w-full text-center text-xs text-stone-400 hover:text-stone-200 font-medium pt-1 hover:underline cursor-pointer"
+            >
+              Continuar sin cliente
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
       {/* --- MODAL: AGREGAR CLIENTE --- */}
       {/* ============================================================== */}
       {isAddClientModalOpen && (
@@ -1145,23 +1426,50 @@ export default function POSSection() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1">Nombre completo / Razón Social</label>
+                <label className="block text-xs font-semibold text-stone-300 mb-1">
+                  DNI (8 dígitos) o RUC (11 dígitos)
+                </label>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={clientForm.docNumber}
+                    onChange={(e) => setClientForm({ ...clientForm, docNumber: e.target.value.replace(/\D/g, "") })}
+                    maxLength={11}
+                    placeholder="Ej. 72345678 / 20601234567"
+                    className="flex-1 px-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const clean = clientForm.docNumber.trim();
+                      if (clean.length === 8 || clean.length === 11) {
+                        const type = clean.length === 11 ? "ruc" : "dni";
+                        const res = await lookupPosClient(type, clean);
+                        if (res && res.name) {
+                          setClientForm((prev) => ({ ...prev, name: res.name }));
+                          setDocType(type === "ruc" ? "FACTURA" : "BOLETA");
+                          showToast("success", `Datos encontrados: ${res.name}`);
+                        }
+                      }
+                    }}
+                    disabled={isLookingUpPosClient || (clientForm.docNumber.length !== 8 && clientForm.docNumber.length !== 11)}
+                    className="px-3 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold text-xs rounded-xl flex items-center gap-1 shrink-0 cursor-pointer transition-all"
+                  >
+                    {isLookingUpPosClient ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                    <span>Consultar</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-300 mb-1">
+                  Nombre completo / Razón Social *
+                </label>
                 <input
                   type="text"
                   value={clientForm.name}
                   onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })}
-                  placeholder="Ej: Marlon Pecho"
-                  className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1">DNI / RUC</label>
-                <input
-                  type="text"
-                  value={clientForm.docNumber}
-                  onChange={(e) => setClientForm({ ...clientForm, docNumber: e.target.value })}
-                  placeholder="Número de documento"
+                  placeholder="Ej: Inversiones Los Andes S.A.C."
                   className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50"
                 />
               </div>
@@ -1190,9 +1498,12 @@ export default function POSSection() {
                 type="button"
                 onClick={() => {
                   if (clientForm.name.trim()) {
-                    setCustomerName(clientForm.name.trim());
+                    handleAssignClient({
+                      name: clientForm.name.trim(),
+                      number: clientForm.docNumber.trim(),
+                      type: clientForm.docNumber.length === 11 ? "ruc" : "dni",
+                    });
                     setIsAddClientModalOpen(false);
-                    showToast("success", `Cliente "${clientForm.name}" asignado.`);
                   }
                 }}
                 className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl"
@@ -1265,8 +1576,14 @@ export default function POSSection() {
         subtotal={subtotal}
         orderTitle={orderType === "mesa" ? `Mesa ${tableNumber}` : "Venta en Caja"}
         customerName={customerName}
+        initialCustomerDoc={assignedClientDoc}
         initialDocType={docType}
         initialPaymentMethod={paymentMethod}
+        items={cart.map((i) => ({
+          name: i.product.title,
+          price: i.product.price,
+          quantity: i.quantity,
+        }))}
         isSubmitting={submitting}
         onConfirm={async (data) => {
           await handleProcessOrder(false, {

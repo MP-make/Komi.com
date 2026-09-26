@@ -18,13 +18,22 @@ import {
   ArrowLeft,
   ShieldCheck,
   UtensilsCrossed,
+  Search,
+  Building2,
+  AlertCircle,
+  MapPin,
+  Globe,
 } from "lucide-react";
 import { registerClient } from "@/lib/firebase/auth";
 import { useAuthStore } from "@/lib/stores/auth";
+import { useDniRucLookup } from "@/hooks/useDniRucLookup";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: "",
+    businessName: "",
+    address: "",
+    slug: "",
     email: "",
     phone: "",
     dni: "",
@@ -35,12 +44,53 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [step, setStep] = useState(1); // 1: datos personales/negocio, 2: contraseña
+  const [docType, setDocType] = useState<"dni" | "ruc">("dni");
 
   const router = useRouter();
   const { login } = useAuthStore();
+  const { lookup, loading: isLookingUp, error: lookupError, data: lookupData, clear: clearLookup } = useDniRucLookup();
+
+  const handleLookupDocument = async () => {
+    const cleanDoc = formData.dni.trim().replace(/\D/g, "");
+    if (!cleanDoc) return;
+    const type = cleanDoc.length === 11 ? "ruc" : "dni";
+    setDocType(type);
+    const res = await lookup(type, cleanDoc);
+    if (res && res.name) {
+      const bName = res.nombre_comercial || res.razon_social || res.name;
+      const cleanSlug = bName
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 30) || "mi-restaurante";
+
+      setFormData((prev) => ({
+        ...prev,
+        name: res.name,
+        businessName: prev.businessName || bName,
+        address: prev.address || res.direccion || "",
+        slug: prev.slug || cleanSlug,
+      }));
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (name === "businessName" && !prev.slug) {
+        updated.slug = value
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 30);
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +111,19 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Registrar usuario en Firebase / Supabase / Auth
+      const finalBusinessName = formData.businessName.trim() || formData.name.trim() || "Mi Restaurante";
+      const cleanSlug = (formData.slug || finalBusinessName)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "") || "mi-restaurante";
+
+      const finalAddress = formData.address.trim() || "Lima, Perú";
+      const finalPhone = formData.phone.trim();
+      const cleanPhone = finalPhone.replace(/\D/g, "");
+
+      // 1. Registrar usuario en Firebase Auth / Firestore
       const user = await registerClient(
         formData.email,
         formData.password,
@@ -70,7 +132,91 @@ export default function RegisterPage() {
         formData.dni
       );
 
-      // Auto login después del registro
+      // 2. Acoplar automáticamente todos los datos a las diferentes secciones:
+      // a) Configuración del Negocio
+      const restaurantPayload = {
+        name: finalBusinessName,
+        ruc: formData.dni.trim(),
+        description: `Bienvenido a ${finalBusinessName}. La mejor carta, platos criollos y atención.`,
+        address: finalAddress,
+        phone: finalPhone,
+        email: formData.email.trim(),
+        website: `https://komi.pe/t/${cleanSlug}`,
+        currency: "PEN (S/)",
+        language: "Español",
+        timeZone: "America/Lima (UTC-5, Perú)",
+        dateFormat: "Dia/Mes/Año (dd/MM/yyyy)",
+        slug: cleanSlug,
+        ticket_footer: "¡GRACIAS POR SU PREFERENCIA! VUELVA PRONTO.",
+        ticket_legal: "Representación Impresa de la Boleta / Factura Electrónica",
+        updated_at: new Date().toISOString(),
+      };
+
+      // b) Tienda Online & Delivery
+      const storePayload = {
+        name: finalBusinessName,
+        slug: cleanSlug,
+        whatsapp: cleanPhone || "51999999999",
+        address: finalAddress,
+        description: `Catálogo oficial de ${finalBusinessName}. Haz tus pedidos por delivery o para llevar.`,
+        deliveryCost: 5.0,
+        allowDelivery: true,
+        allowTakeaway: true,
+        yapeNumber: cleanPhone,
+        yapeHolder: finalBusinessName,
+        isOpen: true,
+        updated_at: new Date().toISOString(),
+      };
+
+      // c) Facturación Electrónica SUNAT
+      const sunatPayload = {
+        ruc: formData.dni.trim(),
+        razonSocial: lookupData?.razon_social || finalBusinessName,
+        nombreComercial: finalBusinessName,
+        direccion: finalAddress,
+        serieBoleta: "B001",
+        serieFactura: "F001",
+        serieNotaVenta: "NV01",
+        billingMode: "mock",
+        pseApiUrl: "https://api.nubefact.com/api/v1/",
+        pseApiToken: "",
+        ticket_footer: "¡GRACIAS POR SU PREFERENCIA! VUELVA PRONTO.",
+        ticket_legal: "Representación Impresa de la Boleta / Factura Electrónica",
+        updated_at: new Date().toISOString(),
+      };
+
+      // Guardar en Supabase site_settings para disponibilidad en backend
+      await Promise.all([
+        fetch("/api/admin/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "restaurant_settings", value: restaurantPayload }),
+        }),
+        fetch("/api/admin/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "komi_store_settings", value: storePayload }),
+        }),
+        fetch("/api/admin/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "restaurant_sunat_settings", value: sunatPayload }),
+        }),
+      ]).catch((err) => console.warn("Fallback guardado local:", err));
+
+      // Guardar en localStorage para disponibilidad instantánea en toda la app
+      localStorage.setItem("restaurant_settings", JSON.stringify(restaurantPayload));
+      localStorage.setItem("komi_store_settings", JSON.stringify(storePayload));
+      localStorage.setItem(`komi_store_settings_${cleanSlug}`, JSON.stringify(storePayload));
+      localStorage.setItem("restaurant_sunat_settings", JSON.stringify(sunatPayload));
+
+      // Notificar a componentes en escucha
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("komi_store_settings_updated"));
+        window.dispatchEvent(new Event("komi_sunat_settings_updated"));
+      }
+
+      // 3. Auto login después del registro
       login({
         uid: user.uid,
         email: formData.email,
@@ -90,8 +236,8 @@ export default function RegisterPage() {
   };
 
   const nextStep = () => {
-    if (!formData.name.trim() || !formData.email.trim()) {
-      setError("Completa los campos obligatorios para continuar");
+    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim()) {
+      setError("Completa nombre, correo y WhatsApp para continuar.");
       return;
     }
     setError("");
@@ -293,13 +439,95 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {step === 1 ? (
               <>
-                {/* Nombre */}
+                {/* Identificación Automática (DNI o RUC) */}
+                <div className="bg-stone-900/70 border border-stone-800 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="dni" className="block text-xs font-bold text-amber-400">
+                      Identificación (DNI o RUC)
+                    </label>
+                    <span className="text-[10px] text-stone-400">Autocompletado automático</span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                      <input
+                        id="dni"
+                        name="dni"
+                        type="text"
+                        value={formData.dni}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          setFormData({ ...formData, dni: val });
+                          if (val.length === 8) setDocType("dni");
+                          if (val.length === 11) setDocType("ruc");
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleLookupDocument();
+                          }
+                        }}
+                        placeholder="Ingresa DNI (8) o RUC (11)..."
+                        maxLength={11}
+                        className="w-full pl-10 pr-3 py-2.5 bg-stone-950/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm font-mono placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-inner"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleLookupDocument}
+                      disabled={isLookingUp || (formData.dni.length !== 8 && formData.dni.length !== 11)}
+                      className="px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 disabled:opacity-40 text-black text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+                    >
+                      {isLookingUp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                      <span>Consultar</span>
+                    </button>
+                  </div>
+
+                  {/* Feedback del documento consultado */}
+                  {lookupData && (
+                    <div className="flex items-center gap-2 text-[10px] flex-wrap pt-0.5">
+                      {lookupData.isMock ? (
+                        <span className="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded font-bold">
+                          ● Datos Simulados
+                        </span>
+                      ) : (
+                        <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-bold">
+                          ✓ Padrón Oficial Verificado
+                        </span>
+                      )}
+                      {lookupData.estado && (
+                        <span className="bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded font-bold">
+                          {lookupData.estado}
+                        </span>
+                      )}
+                      {lookupData.condicion && (
+                        <span className="bg-blue-500/15 text-blue-400 px-2 py-0.5 rounded font-bold">
+                          {lookupData.condicion}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {lookupError && (
+                    <p className="text-[11px] text-rose-400 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{lookupError}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Nombre o Razón Social del Titular */}
                 <div>
                   <label htmlFor="name" className="block text-xs font-bold text-stone-300 mb-1.5">
-                    Nombre o Razón Comercial *
+                    {formData.dni.length === 11 ? "Razón Social Oficial *" : "Nombre del Titular o Representante *"}
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    {formData.dni.length === 11 ? (
+                      <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    ) : (
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    )}
                     <input
                       id="name"
                       name="name"
@@ -307,10 +535,79 @@ export default function RegisterPage() {
                       required
                       value={formData.name}
                       onChange={handleChange}
-                      placeholder="Ej. Mi Bodega / Restobar Don Pepe"
-                      className="w-full pl-10 pr-4 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
+                      placeholder={formData.dni.length === 11 ? "Razón Social registrada en SUNAT" : "Ej. Juan Carlos Pérez"}
+                      className="w-full pl-10 pr-4 py-2.5 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
                     />
                   </div>
+                </div>
+
+                {/* Nombre del Restaurante / Marca Comercial */}
+                <div>
+                  <label htmlFor="businessName" className="block text-xs font-bold text-amber-400 mb-1.5">
+                    Nombre de tu Restaurante o Negocio *
+                  </label>
+                  <div className="relative">
+                    <UtensilsCrossed className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400" />
+                    <input
+                      id="businessName"
+                      name="businessName"
+                      type="text"
+                      required
+                      value={formData.businessName}
+                      onChange={handleChange}
+                      placeholder="Ej. Sabor Criollo Restobar"
+                      className="w-full pl-10 pr-4 py-2.5 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {/* Dirección del Local */}
+                <div>
+                  <label htmlFor="address" className="block text-xs font-bold text-stone-300 mb-1.5">
+                    Dirección del Local o Domicilio Fiscal
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    <input
+                      id="address"
+                      name="address"
+                      type="text"
+                      value={formData.address}
+                      onChange={handleChange}
+                      placeholder="Ej. Av. Los Próceres 450, Miraflores"
+                      className="w-full pl-10 pr-4 py-2.5 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
+                    />
+                  </div>
+                </div>
+
+                {/* Enlace de Tienda Online (Slug Automático) */}
+                <div className="p-3 bg-stone-900/80 border border-amber-500/30 rounded-2xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-stone-300 flex items-center gap-1.5">
+                      <Globe size={13} className="text-amber-400" />
+                      Tu Enlace de Tienda Web & Delivery
+                    </span>
+                    <span className="text-[10px] text-amber-400 font-semibold">Automático</span>
+                  </div>
+                  <div className="flex items-center bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-xs font-mono">
+                    <span className="text-stone-500 select-none">komi.pe/t/</span>
+                    <input
+                      name="slug"
+                      type="text"
+                      value={formData.slug}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, "").slice(0, 30),
+                        })
+                      }
+                      placeholder="mi-restaurante"
+                      className="bg-transparent text-amber-400 font-bold focus:outline-none flex-1 ml-0.5"
+                    />
+                  </div>
+                  <p className="text-[10px] text-stone-500">
+                    Tu carta digital con pedidos directos a WhatsApp estará disponible en este enlace.
+                  </p>
                 </div>
 
                 {/* Email */}
@@ -328,48 +625,28 @@ export default function RegisterPage() {
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="admin@tunegocio.com"
-                      className="w-full pl-10 pr-4 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
+                      className="w-full pl-10 pr-4 py-2.5 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
                     />
                   </div>
                 </div>
 
-                {/* Teléfono y DNI en 2 columnas */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="phone" className="block text-xs font-bold text-stone-300 mb-1.5">
-                      Teléfono WhatsApp
-                    </label>
-                    <div className="relative">
-                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                      <input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        placeholder="987654321"
-                        className="w-full pl-10 pr-4 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="dni" className="block text-xs font-bold text-stone-300 mb-1.5">
-                      DNI o RUC
-                    </label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                      <input
-                        id="dni"
-                        name="dni"
-                        type="text"
-                        value={formData.dni}
-                        onChange={handleChange}
-                        placeholder="12345678"
-                        maxLength={11}
-                        className="w-full pl-10 pr-4 py-3 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
-                      />
-                    </div>
+                {/* Teléfono WhatsApp */}
+                <div>
+                  <label htmlFor="phone" className="block text-xs font-bold text-stone-300 mb-1.5">
+                    Teléfono WhatsApp (Pedidos y Caja) *
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    <input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="987654321"
+                      className="w-full pl-10 pr-4 py-2.5 bg-stone-900/90 border border-stone-700/80 rounded-xl text-white text-xs sm:text-sm placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
+                    />
                   </div>
                 </div>
 

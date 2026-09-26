@@ -20,7 +20,15 @@ import {
   Split,
   Layers,
   ArrowLeftRight,
+  Search,
+  Building2,
+  User,
+  AlertCircle,
+  FileText,
 } from "lucide-react";
+import { useDniRucLookup } from "@/hooks/useDniRucLookup";
+import ReceiptPrintModal from "@/components/pos/ReceiptPrintModal";
+import type { IssuedInvoice } from "@/lib/services/billing.service";
 
 export type PaymentMethodType = "Efectivo" | "Yape" | "Plin" | "Tarjeta" | "Mixto";
 export type SinglePaymentMethod = "Efectivo" | "Yape" | "Plin" | "Tarjeta";
@@ -33,8 +41,15 @@ export interface ProcessPaymentModalProps {
   subtotal?: number;
   orderTitle?: string; // Ej: "Mesa 4" o "Venta en Caja"
   customerName?: string;
+  initialCustomerDoc?: {
+    type: 'dni' | 'ruc' | 'ninguno';
+    number: string;
+    name: string;
+    address?: string;
+  } | null;
   initialDocType?: DocumentType;
   initialPaymentMethod?: PaymentMethodType;
+  items?: Array<{ name: string; price: number; quantity: number }>;
   onConfirm: (data: {
     paymentMethod: PaymentMethodType;
     docType: DocumentType;
@@ -47,6 +62,13 @@ export interface ProcessPaymentModalProps {
       method2: string;
       amount2: number;
     };
+    customerDoc?: {
+      type: 'dni' | 'ruc' | 'ninguno';
+      number: string;
+      name: string;
+      address?: string;
+    };
+    issuedInvoice?: IssuedInvoice;
   }) => Promise<void> | void;
   isSubmitting?: boolean;
 }
@@ -58,10 +80,12 @@ export default function ProcessPaymentModal({
   subtotal,
   orderTitle = "Comanda",
   customerName = "Cliente General",
+  initialCustomerDoc = null,
   initialDocType = "BOLETA",
   initialPaymentMethod = "Efectivo",
   onConfirm,
   isSubmitting = false,
+  items = [],
 }: ProcessPaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>(initialPaymentMethod);
   const [docType, setDocType] = useState<DocumentType>(initialDocType);
@@ -76,6 +100,16 @@ export default function ProcessPaymentModal({
   const [mixedAmount2, setMixedAmount2] = useState<string>("");
   const [mixedCashReceived, setMixedCashReceived] = useState<string>("");
 
+  // Estados para Identificación de Cliente (DNI / RUC) y Comprobantes
+  const [docNumber, setDocNumber] = useState<string>("");
+  const [clientDenominacion, setClientDenominacion] = useState<string>("");
+  const [clientAddress, setClientAddress] = useState<string>("");
+  const [issuedInvoice, setIssuedInvoice] = useState<IssuedInvoice | null>(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isIssuingInvoice, setIsIssuingInvoice] = useState(false);
+
+  const { lookup, loading: isLookingUp, error: lookupError, data: lookupData, clear: clearLookup } = useDniRucLookup();
+
   // Configuración de QR (cargada dinámicamente)
   const [yapeConfig, setYapeConfig] = useState<{ qr_url: string; name: string }>({
     qr_url: "/uploads/1785226696144-hs71nv.png",
@@ -88,6 +122,18 @@ export default function ProcessPaymentModal({
       setDocType(initialDocType);
       setCashReceived(total.toFixed(2));
       setReferenceCode("");
+      if (initialCustomerDoc && initialCustomerDoc.number) {
+        setDocNumber(initialCustomerDoc.number);
+        setClientDenominacion(initialCustomerDoc.name || customerName);
+        setClientAddress(initialCustomerDoc.address || "");
+      } else {
+        setDocNumber("");
+        setClientDenominacion(customerName && customerName !== "Cliente General" ? customerName : "");
+        setClientAddress("");
+      }
+      setIssuedInvoice(null);
+      setIsReceiptModalOpen(false);
+      clearLookup();
 
       // Inicializar split 50/50 por defecto para Mixto
       const half1 = Math.round((total / 2) * 100) / 100;
@@ -110,7 +156,17 @@ export default function ProcessPaymentModal({
         })
         .catch(() => {});
     }
-  }, [isOpen, initialDocType, initialPaymentMethod, total]);
+  }, [isOpen, initialDocType, initialPaymentMethod, total, customerName, clearLookup]);
+
+  const handleLookup = async () => {
+    if (!docNumber.trim()) return;
+    const type = docType === "FACTURA" ? "ruc" : "dni";
+    const res = await lookup(type, docNumber);
+    if (res) {
+      setClientDenominacion(res.name);
+      if (res.address) setClientAddress(res.address);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -206,6 +262,44 @@ export default function ProcessPaymentModal({
       ? [mixedSummaryStr, referenceCode.trim()].filter(Boolean).join(" | ")
       : referenceCode.trim() || undefined;
 
+    let issuedInvoiceData: IssuedInvoice | undefined = undefined;
+
+    // Emisión del Comprobante (Boleta / Factura / Nota de Venta)
+    try {
+      setIsIssuingInvoice(true);
+      const invoicePayload = {
+        docType: (docType === "COTIZACIÓN" ? "NTV" : docType) as "BOLETA" | "FACTURA" | "NTV",
+        items: items && items.length > 0 ? items : [{ name: orderTitle || "Consumo en Restaurante", price: total, quantity: 1 }],
+        customer: {
+          tipoDoc: docType === "FACTURA" ? ("ruc" as const) : docType === "BOLETA" && docNumber.trim() ? ("dni" as const) : ("ninguno" as const),
+          numDoc: docNumber.trim(),
+          denominacion: clientDenominacion.trim() || customerName || "Cliente General",
+          direccion: clientAddress.trim(),
+        },
+        paymentMethod: selectedMethod,
+        orderTitle,
+      };
+
+      const res = await fetch("/api/invoices/issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(invoicePayload),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          issuedInvoiceData = json.data;
+          setIssuedInvoice(json.data);
+          setIsReceiptModalOpen(true);
+        }
+      }
+    } catch (e) {
+      console.error("Error al emitir comprobante:", e);
+    } finally {
+      setIsIssuingInvoice(false);
+    }
+
     await onConfirm({
       paymentMethod: selectedMethod,
       docType,
@@ -213,6 +307,13 @@ export default function ProcessPaymentModal({
       vuelto: selectedMethod === "Efectivo" ? vuelto : finalVuelto,
       referenceCode: finalReference,
       mixedDetails: mixedData,
+      customerDoc: {
+        type: docType === "FACTURA" ? "ruc" : docType === "BOLETA" && docNumber.trim() ? "dni" : "ninguno",
+        number: docNumber.trim(),
+        name: clientDenominacion.trim() || customerName || "Cliente General",
+        address: clientAddress.trim(),
+      },
+      issuedInvoice: issuedInvoiceData,
     });
   };
 
@@ -321,6 +422,153 @@ export default function ProcessPaymentModal({
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Datos del Cliente y Facturación SUNAT */}
+            <div className="bg-stone-950/70 border border-stone-800/90 rounded-2xl p-4 space-y-3 shadow-inner">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-stone-300 uppercase tracking-wider flex items-center gap-1.5">
+                  {docType === "FACTURA" ? (
+                    <Building2 className="w-4 h-4 text-emerald-400" />
+                  ) : docType === "BOLETA" ? (
+                    <User className="w-4 h-4 text-sky-400" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-amber-400" />
+                  )}
+                  <span>
+                    {docType === "FACTURA"
+                      ? "Datos de la Empresa (Factura SUNAT)"
+                      : docType === "BOLETA"
+                      ? "Datos del Cliente (Boleta SUNAT)"
+                      : "Datos del Cliente (Nota de Venta)"}
+                  </span>
+                </span>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    docType === "FACTURA"
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                      : docType === "BOLETA"
+                      ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                      : "bg-stone-800 text-stone-400 border-stone-700"
+                  }`}
+                >
+                  {docType === "FACTURA" ? "RUC Obligatorio" : docType === "BOLETA" ? "DNI / Opcional < S/ 700" : "Interno"}
+                </span>
+              </div>
+
+              {/* Si es FACTURA o BOLETA: Barra de búsqueda con RENIEC/SUNAT */}
+              {docType !== "NTV" && docType !== "COTIZACIÓN" ? (
+                <div className="space-y-2.5">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        maxLength={docType === "FACTURA" ? 11 : 8}
+                        value={docNumber}
+                        onChange={(e) => setDocNumber(e.target.value.replace(/\D/g, ""))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleLookup();
+                          }
+                        }}
+                        placeholder={docType === "FACTURA" ? "Ingresa RUC (11 dígitos)..." : "Ingresa DNI (8 dígitos)..."}
+                        className="w-full bg-stone-900 border border-stone-700 focus:border-orange-500 text-white text-xs px-3 py-2.5 rounded-xl outline-none font-mono"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleLookup}
+                      disabled={isLookingUp || (docType === "FACTURA" ? docNumber.length !== 11 : docNumber.length !== 8)}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                    >
+                      {isLookingUp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                      <span>{docType === "FACTURA" ? "Buscar RUC" : "Buscar DNI"}</span>
+                    </button>
+                  </div>
+
+                  {/* Alerta de Error de búsqueda */}
+                  {lookupError && (
+                    <p className="text-[11px] text-red-400 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{lookupError}</span>
+                    </p>
+                  )}
+
+                  {/* Estado de consulta si fue exitosa */}
+                  {lookupData && (
+                    <div className="flex items-center gap-2 text-[10px] flex-wrap">
+                      {lookupData.isMock ? (
+                        <span className="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded font-bold">
+                          ● Modo Simulador
+                        </span>
+                      ) : (
+                        <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-bold">
+                          ✓ Padrón Oficial Verificado
+                        </span>
+                      )}
+                      {lookupData.estado && (
+                        <span className="bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded font-bold">
+                          {lookupData.estado}
+                        </span>
+                      )}
+                      {lookupData.condicion && (
+                        <span className="bg-blue-500/15 text-blue-400 px-2 py-0.5 rounded font-bold">
+                          {lookupData.condicion}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Campos de Nombre / Razón Social y Dirección */}
+                  <div className="space-y-2 pt-0.5">
+                    <input
+                      type="text"
+                      value={clientDenominacion}
+                      onChange={(e) => setClientDenominacion(e.target.value)}
+                      placeholder={docType === "FACTURA" ? "Razón Social de la empresa *" : "Nombres y Apellidos del cliente"}
+                      className="w-full bg-stone-900 border border-stone-800 focus:border-stone-700 text-white text-xs px-3 py-2 rounded-xl outline-none"
+                    />
+                    {docType === "FACTURA" && (
+                      <input
+                        type="text"
+                        value={clientAddress}
+                        onChange={(e) => setClientAddress(e.target.value)}
+                        placeholder="Dirección Fiscal (opcional)"
+                        className="w-full bg-stone-900 border border-stone-800 focus:border-stone-700 text-white text-xs px-3 py-2 rounded-xl outline-none"
+                      />
+                    )}
+                  </div>
+
+                  {docType === "BOLETA" && total > 700 && !docNumber.trim() && (
+                    <p className="text-[10px] text-amber-400/90 flex items-center gap-1 font-medium bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Normativa SUNAT: Ventas mayores a S/ 700.00 requieren DNI obligatorio.</span>
+                    </p>
+                  )}
+                </div>
+              ) : (
+                /* Para NOTA DE VENTA */
+                <div>
+                  <input
+                    type="text"
+                    value={clientDenominacion}
+                    onChange={(e) => setClientDenominacion(e.target.value)}
+                    placeholder="Nombre del cliente o referencia (ej: Mesa 4 / Juan Pérez)"
+                    className="w-full bg-stone-900 border border-stone-800 focus:border-stone-700 text-white text-xs px-3 py-2 rounded-xl outline-none"
+                  />
+                  <p className="text-[10px] text-stone-500 mt-1.5">
+                    Comprobante interno para control administrativo y de caja (No va a SUNAT).
+                  </p>
+                </div>
+              )}
+
+              {/* Desglose Tributario (Base + IGV 18%) */}
+              <div className="flex items-center justify-between text-[11px] pt-2 border-t border-stone-800/80 text-stone-400 font-mono">
+                <span>Base Imponible: S/ {(total / 1.18).toFixed(2)}</span>
+                <span>I.G.V. (18%): S/ {(total - total / 1.18).toFixed(2)}</span>
+                <span className="font-bold text-amber-400">Total: S/ {total.toFixed(2)}</span>
               </div>
             </div>
 
@@ -912,44 +1160,70 @@ export default function ProcessPaymentModal({
         <div className="px-6 py-4 border-t border-stone-800/80 bg-stone-950/70 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-stone-400">
             <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
-            <span>Transacción registrada bajo auditoría y sincronización POS</span>
+            <span>
+              {docType === "FACTURA"
+                ? "Emisión con Facturación Electrónica SUNAT"
+                : docType === "BOLETA"
+                ? "Emisión con Boleta Electrónica SUNAT"
+                : "Comprobante comercial interno de caja"}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="flex-1 sm:flex-none py-3 px-5 rounded-xl border border-stone-700 hover:bg-stone-800 text-stone-300 font-bold text-xs transition-colors cursor-pointer"
-            >
-              Cancelar
-            </button>
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+            {docType === "FACTURA" && (docNumber.trim().replace(/\D/g, "").length !== 11 || !clientDenominacion.trim()) && (
+              <span className="text-[11px] text-amber-400 font-medium">
+                * Ingresa RUC (11 dígitos) y Razón Social
+              </span>
+            )}
 
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={
-                isSubmitting ||
-                (selectedMethod === "Efectivo" && isCashInsufficient) ||
-                (selectedMethod === "Mixto" && (isMixedMismatch || isMixedCashInsufficient))
-              }
-              className="flex-1 sm:flex-none py-3 px-6 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:opacity-50 text-white font-black rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 active:scale-[0.99] transition-all cursor-pointer"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Procesando Venta...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 size={16} />
-                  <span>Confirmar y Finalizar Cobro</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting || isIssuingInvoice}
+                className="flex-1 sm:flex-none py-3 px-5 rounded-xl border border-stone-700 hover:bg-stone-800 text-stone-300 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={
+                  isSubmitting ||
+                  isIssuingInvoice ||
+                  (selectedMethod === "Efectivo" && isCashInsufficient) ||
+                  (selectedMethod === "Mixto" && (isMixedMismatch || isMixedCashInsufficient)) ||
+                  (docType === "FACTURA" && (docNumber.trim().replace(/\D/g, "").length !== 11 || !clientDenominacion.trim()))
+                }
+                className="flex-1 sm:flex-none py-3 px-6 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:opacity-50 text-white font-black rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 active:scale-[0.99] transition-all cursor-pointer"
+              >
+                {isSubmitting || isIssuingInvoice ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Emitiendo Comprobante...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={16} />
+                    <span>Confirmar y Finalizar Cobro</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Modal de Impresión de Comprobante / Ticket SUNAT */}
+      <ReceiptPrintModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => {
+          setIsReceiptModalOpen(false);
+          onClose();
+        }}
+        invoice={issuedInvoice}
+      />
     </div>
   );
 }

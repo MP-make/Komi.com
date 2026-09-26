@@ -19,7 +19,13 @@ import {
   Sparkles,
   Printer,
   ChevronRight,
+  ShieldCheck,
+  Search,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
+import { useDniRucLookup } from "@/hooks/useDniRucLookup";
 
 export default function BusinessSettingsPage() {
   const [activeTab, setActiveTab] = useState<"negocio" | "apariencia" | "comprobantes" | "tienda">("negocio");
@@ -42,9 +48,21 @@ export default function BusinessSettingsPage() {
   const [timeZone, setTimeZone] = useState("America/Lima (UTC-5, Perú)");
   const [dateFormat, setDateFormat] = useState("Dia/Mes/Año (dd/MM/yyyy)");
 
-  // 3. Comprobantes / Tickets
+  // 3. Comprobantes / Facturación SUNAT
   const [ticketFooter, setTicketFooter] = useState("¡GRACIAS POR SU PREFERENCIA! VUELVA PRONTO.");
-  const [ticketLegal, setTicketLegal] = useState("Comprobante sin valor tributario");
+  const [ticketLegal, setTicketLegal] = useState("Representación Impresa de la Boleta / Factura Electrónica");
+  const [sunatRuc, setSunatRuc] = useState("20608945123");
+  const [sunatRazonSocial, setSunatRazonSocial] = useState("QUE BRAVAZO RESTOBAR S.A.C.");
+  const [sunatNombreComercial, setSunatNombreComercial] = useState("Que Bravazo! Restobar");
+  const [sunatDireccion, setSunatDireccion] = useState("Urb. Los Jardines de San Andrés, Pisco, Ica");
+  const [serieBoleta, setSerieBoleta] = useState("B001");
+  const [serieFactura, setSerieFactura] = useState("F001");
+  const [serieNotaVenta, setSerieNotaVenta] = useState("NV01");
+  const [billingMode, setBillingMode] = useState<"mock" | "production">("mock");
+  const [pseApiUrl, setPseApiUrl] = useState("https://api.nubefact.com/api/v1/");
+  const [pseApiToken, setPseApiToken] = useState("");
+
+  const { lookup: lookupSunatSettings, loading: isLookingUpSunat } = useDniRucLookup();
 
   // 4. Tienda Online
   const [storeSlug, setStoreSlug] = useState("quebravazo");
@@ -75,6 +93,8 @@ export default function BusinessSettingsPage() {
       try {
         const localRest = localStorage.getItem("restaurant_settings");
         const localStore = localStorage.getItem("komi_store_settings");
+        const localSunat = localStorage.getItem("restaurant_sunat_settings");
+
         if (localRest) {
           const p = JSON.parse(localRest);
           if (p.name) setBusinessName(p.name);
@@ -106,6 +126,19 @@ export default function BusinessSettingsPage() {
           if (s.logo_url && !logoUrl) setLogoUrl(s.logo_url);
           if (s.banner_url && !bannerUrl) setBannerUrl(s.banner_url);
         }
+        if (localSunat) {
+          const su = JSON.parse(localSunat);
+          if (su.ruc) setSunatRuc(su.ruc);
+          if (su.razonSocial) setSunatRazonSocial(su.razonSocial);
+          if (su.nombreComercial) setSunatNombreComercial(su.nombreComercial);
+          if (su.direccion) setSunatDireccion(su.direccion);
+          if (su.serieBoleta) setSerieBoleta(su.serieBoleta);
+          if (su.serieFactura) setSerieFactura(su.serieFactura);
+          if (su.serieNotaVenta) setSerieNotaVenta(su.serieNotaVenta);
+          if (su.billingMode) setBillingMode(su.billingMode);
+          if (su.pseApiUrl) setPseApiUrl(su.pseApiUrl);
+          if (su.pseApiToken) setPseApiToken(su.pseApiToken);
+        }
       } catch (e) {
         console.warn("Could not parse local settings", e);
       }
@@ -114,8 +147,9 @@ export default function BusinessSettingsPage() {
       Promise.all([
         fetch("/api/admin/settings?key=restaurant_settings").then((r) => r.json()).catch(() => ({})),
         fetch("/api/admin/settings?key=komi_store_settings").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/admin/settings?key=restaurant_sunat_settings").then((r) => r.json()).catch(() => ({})),
         fetch("/api/admin/media").then((r) => r.json()).catch(() => ({})),
-      ]).then(([restRes, storeRes, mediaRes]) => {
+      ]).then(([restRes, storeRes, sunatRes, mediaRes]) => {
         if (restRes?.value) {
           const p = restRes.value;
           if (p.name) setBusinessName(p.name);
@@ -152,6 +186,20 @@ export default function BusinessSettingsPage() {
           if (s.banner_url) setBannerUrl(s.banner_url);
         }
 
+        if (sunatRes?.value) {
+          const su = sunatRes.value;
+          if (su.ruc) setSunatRuc(su.ruc);
+          if (su.razonSocial) setSunatRazonSocial(su.razonSocial);
+          if (su.nombreComercial) setSunatNombreComercial(su.nombreComercial);
+          if (su.direccion) setSunatDireccion(su.direccion);
+          if (su.serieBoleta) setSerieBoleta(su.serieBoleta);
+          if (su.serieFactura) setSerieFactura(su.serieFactura);
+          if (su.serieNotaVenta) setSerieNotaVenta(su.serieNotaVenta);
+          if (su.billingMode) setBillingMode(su.billingMode);
+          if (su.pseApiUrl) setPseApiUrl(su.pseApiUrl);
+          if (su.pseApiToken) setPseApiToken(su.pseApiToken);
+        }
+
         // Si no hay logo ni banner explícito, intentar tomar de multimedia
         if (mediaRes?.data && Array.isArray(mediaRes.data)) {
           const mediaLogo = mediaRes.data.find((m: any) => m.section === "logo" && m.is_active);
@@ -166,6 +214,25 @@ export default function BusinessSettingsPage() {
       });
     }
   }, []);
+
+  // Consultar RUC emisor directamente a SUNAT
+  const handleLookupSunat = async () => {
+    const clean = sunatRuc.replace(/\D/g, "");
+    if (clean.length !== 11) {
+      alert("Por favor ingrese un RUC de 11 dígitos para consultar en SUNAT.");
+      return;
+    }
+    const result = await lookupSunatSettings(clean);
+    if (result) {
+      if (result.razon_social) setSunatRazonSocial(result.razon_social);
+      if (result.nombre_comercial) {
+        setSunatNombreComercial(result.nombre_comercial);
+      } else if (result.razon_social && !sunatNombreComercial) {
+        setSunatNombreComercial(result.razon_social);
+      }
+      if (result.direccion) setSunatDireccion(result.direccion);
+    }
+  };
 
   // Subir archivo de logo
   const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,6 +324,22 @@ export default function BusinessSettingsPage() {
       updated_at: new Date().toISOString(),
     };
 
+    const sunatPayload = {
+      ruc: sunatRuc.trim(),
+      razonSocial: sunatRazonSocial.trim(),
+      nombreComercial: sunatNombreComercial.trim(),
+      direccion: sunatDireccion.trim(),
+      serieBoleta: serieBoleta.trim(),
+      serieFactura: serieFactura.trim(),
+      serieNotaVenta: serieNotaVenta.trim(),
+      billingMode,
+      pseApiUrl: pseApiUrl.trim(),
+      pseApiToken: pseApiToken.trim(),
+      ticket_footer: ticketFooter.trim(),
+      ticket_legal: ticketLegal.trim(),
+      updated_at: new Date().toISOString(),
+    };
+
     try {
       // 1. Guardar en Supabase site_settings
       await Promise.all([
@@ -270,16 +353,23 @@ export default function BusinessSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key: "komi_store_settings", value: storePayload }),
         }),
+        fetch("/api/admin/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "restaurant_sunat_settings", value: sunatPayload }),
+        }),
       ]);
 
       // 2. Guardar en localStorage para disponibilidad inmediata en toda la app
       localStorage.setItem("restaurant_settings", JSON.stringify(restaurantPayload));
       localStorage.setItem("komi_store_settings", JSON.stringify(storePayload));
       localStorage.setItem(`komi_store_settings_${cleanSlug}`, JSON.stringify(storePayload));
+      localStorage.setItem("restaurant_sunat_settings", JSON.stringify(sunatPayload));
 
-      // 3. Notificar a componentes en escucha (como el Sidebar para actualizar el link a la tienda)
+      // 3. Notificar a componentes en escucha (como el Sidebar o POS)
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("komi_store_settings_updated"));
+        window.dispatchEvent(new Event("komi_sunat_settings_updated"));
       }
 
       setSavedSuccess(true);
@@ -289,6 +379,7 @@ export default function BusinessSettingsPage() {
       // Fallback local
       localStorage.setItem("restaurant_settings", JSON.stringify(restaurantPayload));
       localStorage.setItem("komi_store_settings", JSON.stringify(storePayload));
+      localStorage.setItem("restaurant_sunat_settings", JSON.stringify(sunatPayload));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3500);
     } finally {
@@ -390,7 +481,7 @@ export default function BusinessSettingsPage() {
           }`}
         >
           <Receipt size={15} />
-          <span>Comprobantes & Tickets</span>
+          <span>Facturación SUNAT & Tickets</span>
         </button>
 
         <button
@@ -747,118 +838,407 @@ export default function BusinessSettingsPage() {
         </div>
       )}
 
-      {/* 3. PESTAÑA: COMPROBANTES / TICKETS */}
+      {/* 3. PESTAÑA: COMPROBANTES / FACTURACIÓN SUNAT */}
       {activeTab === "comprobantes" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-200">
-          <div className="lg:col-span-7 bg-stone-900/60 border border-stone-800/80 rounded-3xl p-6 sm:p-8 space-y-5 text-xs">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-blue-500" />
-                Personalización de Tickets y Comprobantes
-              </h2>
-              <p className="text-xs text-stone-400 mt-0.5">
-                Configura los textos y pie de página impresos en tickets térmicos de caja y pedidos.
-              </p>
+          <div className="lg:col-span-7 space-y-6">
+            {/* Cabecera */}
+            <div className="bg-stone-900/60 border border-stone-800/80 rounded-3xl p-6 sm:p-8 space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                  <Receipt className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    Facturación Electrónica SUNAT y Comprobantes
+                  </h2>
+                  <p className="text-xs text-stone-400">
+                    Configura los datos del contribuyente emisor, series de emisión y credenciales del facturador.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-stone-300 font-semibold mb-1.5">
-                Pie de página / Mensaje de agradecimiento *
-              </label>
-              <textarea
-                rows={2}
-                value={ticketFooter}
-                onChange={(e) => setTicketFooter(e.target.value)}
-                placeholder="¡GRACIAS POR SU PREFERENCIA! Vuelva pronto."
-                className="w-full px-4 py-3 bg-stone-950/80 border border-stone-800 rounded-xl text-white placeholder-stone-600 focus:outline-none focus:border-blue-500"
-              />
+            {/* Bloque 1: Datos del Emisor Tributario */}
+            <div className="bg-stone-900/60 border border-stone-800/80 rounded-3xl p-6 sm:p-8 space-y-5 text-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-amber-500" />
+                    Datos del Emisor Tributario (SUNAT)
+                  </h3>
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    Información fiscal obligatoria que aparecerá en el encabezado de Boletas y Facturas.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                  <ShieldCheck size={12} /> RUC Activo
+                </span>
+              </div>
+
+              {/* RUC con buscador */}
+              <div>
+                <label className="block text-stone-300 font-semibold mb-1.5">
+                  RUC de la Empresa (11 dígitos) *
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    maxLength={11}
+                    value={sunatRuc}
+                    onChange={(e) => setSunatRuc(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    placeholder="20608945123"
+                    className="flex-1 px-4 py-3 bg-stone-950/80 border border-stone-800 rounded-xl text-white font-mono text-sm tracking-wider focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleLookupSunat}
+                    disabled={isLookingUpSunat || sunatRuc.length !== 11}
+                    className="px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-xl flex items-center gap-2 transition"
+                  >
+                    {isLookingUpSunat ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
+                    <span>Consultar SUNAT</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  Autocompleta Razón Social y Domicilio Fiscal oficial registrado ante la SUNAT.
+                </p>
+              </div>
+
+              {/* Razón Social */}
+              <div>
+                <label className="block text-stone-300 font-semibold mb-1.5">
+                  Razón Social (Nombre Legal) *
+                </label>
+                <input
+                  type="text"
+                  value={sunatRazonSocial}
+                  onChange={(e) => setSunatRazonSocial(e.target.value)}
+                  placeholder="QUE BRAVAZO RESTOBAR S.A.C."
+                  className="w-full px-4 py-3 bg-stone-950/80 border border-stone-800 rounded-xl text-white uppercase placeholder-stone-600 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Nombre Comercial y Domicilio Fiscal */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-stone-300 font-semibold mb-1.5">
+                    Nombre Comercial (Fantasía)
+                  </label>
+                  <input
+                    type="text"
+                    value={sunatNombreComercial}
+                    onChange={(e) => setSunatNombreComercial(e.target.value)}
+                    placeholder="Que Bravazo! Restobar"
+                    className="w-full px-4 py-3 bg-stone-950/80 border border-stone-800 rounded-xl text-white placeholder-stone-600 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-stone-300 font-semibold mb-1.5">
+                    Domicilio Fiscal (Dirección SUNAT) *
+                  </label>
+                  <input
+                    type="text"
+                    value={sunatDireccion}
+                    onChange={(e) => setSunatDireccion(e.target.value)}
+                    placeholder="Urb. Los Jardines de San Andrés, Pisco, Ica"
+                    className="w-full px-4 py-3 bg-stone-950/80 border border-stone-800 rounded-xl text-white placeholder-stone-600 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-stone-300 font-semibold mb-1.5">
-                Leyenda legal o aviso adicional
-              </label>
-              <input
-                type="text"
-                value={ticketLegal}
-                onChange={(e) => setTicketLegal(e.target.value)}
-                placeholder="Comprobante sin valor tributario"
-                className="w-full px-4 py-3 bg-stone-950/80 border border-stone-800 rounded-xl text-white placeholder-stone-600 focus:outline-none focus:border-blue-500"
-              />
+            {/* Bloque 2: Series de Facturación Electrónica */}
+            <div className="bg-stone-900/60 border border-stone-800/80 rounded-3xl p-6 sm:p-8 space-y-4 text-xs">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-400" />
+                  Series de Emisión Electrónica
+                </h3>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  Prefijo alfanumérico oficial de 4 caracteres para la numeración de los comprobantes.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-stone-300 font-semibold">Boletas</label>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Tipo 03</span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={serieBoleta}
+                    onChange={(e) => setSerieBoleta(e.target.value.toUpperCase().slice(0, 4))}
+                    placeholder="B001"
+                    className="w-full px-3 py-2 bg-stone-900 border border-stone-700 rounded-xl text-white font-mono text-center font-bold text-sm tracking-wider focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-[10px] text-stone-500">Inicia con &apos;B&apos; (ej: B001)</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-stone-300 font-semibold">Facturas</label>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Tipo 01</span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={serieFactura}
+                    onChange={(e) => setSerieFactura(e.target.value.toUpperCase().slice(0, 4))}
+                    placeholder="F001"
+                    className="w-full px-3 py-2 bg-stone-900 border border-stone-700 rounded-xl text-white font-mono text-center font-bold text-sm tracking-wider focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-[10px] text-stone-500">Inicia con &apos;F&apos; (ej: F001)</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-stone-300 font-semibold">Notas de Venta</label>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-500/10 text-stone-400">Ticket</span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={serieNotaVenta}
+                    onChange={(e) => setSerieNotaVenta(e.target.value.toUpperCase().slice(0, 4))}
+                    placeholder="NV01"
+                    className="w-full px-3 py-2 bg-stone-900 border border-stone-700 rounded-xl text-white font-mono text-center font-bold text-sm tracking-wider focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-[10px] text-stone-500">Interno (ej: NV01, T001)</p>
+                </div>
+              </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs leading-relaxed space-y-1">
-              <p className="font-bold flex items-center gap-1.5">
-                <Sparkles size={14} />
-                Sincronización Automática:
-              </p>
-              <p>
-                Los comprobantes emitidos en el Punto de Venta (POS) y la impresión de comandas tomarán automáticamente el nombre del negocio, RUC, dirección y este mensaje de pie de página.
-              </p>
+            {/* Bloque 3: Modo de Emisión & Proveedor PSE */}
+            <div className="bg-stone-900/60 border border-stone-800/80 rounded-3xl p-6 sm:p-8 space-y-5 text-xs">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  Modo de Facturación y Conexión PSE
+                </h3>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  Elige entre el entorno de simulador para capacitación o emisión legal directa.
+                </p>
+              </div>
+
+              {/* Selector de Modo */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBillingMode("mock")}
+                  className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between ${
+                    billingMode === "mock"
+                      ? "bg-blue-600/10 border-blue-500 text-white"
+                      : "bg-stone-950/60 border-stone-800 text-stone-400 hover:border-stone-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-sm text-white">Modo Simulador</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/20 text-blue-300">
+                      Entrenamiento
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-400 leading-relaxed">
+                    Genera comprobantes oficiales, códigos QR y correlativos reales para pruebas y capacitación sin coste fiscal.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBillingMode("production")}
+                  className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between ${
+                    billingMode === "production"
+                      ? "bg-emerald-600/10 border-emerald-500 text-white"
+                      : "bg-stone-950/60 border-stone-800 text-stone-400 hover:border-stone-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-sm text-white">Modo Producción PSE</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300">
+                      Validez Legal SUNAT
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-400 leading-relaxed">
+                    Envía comprobantes firmados digitalmente a SUNAT a través de un Proveedor de Servicios Electrónicos (PSE).
+                  </p>
+                </button>
+              </div>
+
+              {/* Credenciales PSE en producción */}
+              {billingMode === "production" && (
+                <div className="p-4 rounded-2xl bg-stone-950/90 border border-emerald-500/30 space-y-4 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs">
+                    <CheckCircle2 size={16} />
+                    <span>Configuración de API del PSE (NubeFact / Facturador.pro / Decolecta)</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-stone-300 font-semibold mb-1">URL Endpoint del PSE</label>
+                    <input
+                      type="url"
+                      value={pseApiUrl}
+                      onChange={(e) => setPseApiUrl(e.target.value)}
+                      placeholder="https://api.nubefact.com/api/v1/"
+                      className="w-full px-3.5 py-2.5 bg-stone-900 border border-stone-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-stone-300 font-semibold mb-1">Token de API / API Key del PSE</label>
+                    <input
+                      type="password"
+                      value={pseApiToken}
+                      onChange={(e) => setPseApiToken(e.target.value)}
+                      placeholder="Bearer token o hash de autorización"
+                      className="w-full px-3.5 py-2.5 bg-stone-900 border border-stone-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bloque 4: Textos y Pie de Ticket */}
+            <div className="bg-stone-900/60 border border-stone-800/80 rounded-3xl p-6 sm:p-8 space-y-4 text-xs">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Printer className="w-4 h-4 text-stone-300" />
+                Personalización del Ticket Térmico
+              </h3>
+
+              <div>
+                <label className="block text-stone-300 font-semibold mb-1.5">
+                  Pie de página / Mensaje de agradecimiento *
+                </label>
+                <textarea
+                  rows={2}
+                  value={ticketFooter}
+                  onChange={(e) => setTicketFooter(e.target.value)}
+                  placeholder="¡GRACIAS POR SU PREFERENCIA! VUELVA PRONTO."
+                  className="w-full px-4 py-3 bg-stone-950/80 border border-stone-800 rounded-xl text-white placeholder-stone-600 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-stone-300 font-semibold mb-1.5">
+                  Leyenda legal o aviso adicional
+                </label>
+                <input
+                  type="text"
+                  value={ticketLegal}
+                  onChange={(e) => setTicketLegal(e.target.value)}
+                  placeholder="Representación Impresa de la Boleta / Factura Electrónica"
+                  className="w-full px-4 py-3 bg-stone-950/80 border border-stone-800 rounded-xl text-white placeholder-stone-600 focus:outline-none focus:border-blue-500"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Vista previa en Vivo del Ticket Térmico */}
-          <div className="lg:col-span-5 bg-stone-900/60 border border-stone-800/80 rounded-3xl p-6 flex flex-col items-center">
-            <div className="flex items-center gap-1.5 text-stone-400 font-semibold text-xs mb-3">
-              <Printer size={14} />
-              <span>Simulación de Ticket (80mm)</span>
+          {/* Vista previa en Vivo del Ticket Térmico (80mm) */}
+          <div className="lg:col-span-5 bg-stone-900/60 border border-stone-800/80 rounded-3xl p-6 flex flex-col items-center sticky top-6 h-fit">
+            <div className="w-full flex items-center justify-between text-stone-400 font-semibold text-xs mb-3">
+              <div className="flex items-center gap-1.5">
+                <Printer size={14} className="text-blue-400" />
+                <span>Simulación de Ticket (80mm)</span>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                billingMode === "production"
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : "bg-blue-500/20 text-blue-400"
+              }`}>
+                {billingMode === "production" ? "SUNAT PROD" : "SIMULADOR"}
+              </span>
             </div>
 
-            <div className="w-full max-w-[280px] bg-white text-black p-5 rounded-xl font-mono text-[11px] shadow-2xl space-y-2 select-none border border-stone-300">
+            <div className="w-full max-w-[290px] bg-white text-black p-5 rounded-2xl font-mono text-[11px] shadow-2xl space-y-2 select-none border border-stone-300">
               <div className="text-center space-y-0.5">
                 {logoUrl && (
                   <div className="w-12 h-12 mx-auto relative mb-1">
                     <Image src={logoUrl} alt="Logo" fill className="object-contain" unoptimized />
                   </div>
                 )}
-                <p className="font-extrabold text-xs uppercase">{businessName}</p>
-                <p className="text-[10px] text-gray-600">RUC: {rucNit}</p>
-                <p className="text-[10px] text-gray-600 leading-tight">{address}</p>
-                <p className="text-[10px] text-gray-600">Tel: {phone}</p>
+                <p className="font-extrabold text-xs uppercase">{sunatNombreComercial || businessName}</p>
+                <p className="text-[10px] text-gray-700 font-semibold">{sunatRazonSocial}</p>
+                <p className="text-[10px] text-gray-600 font-bold">RUC: {sunatRuc || "20608945123"}</p>
+                <p className="text-[9px] text-gray-500 leading-tight">{sunatDireccion || address}</p>
+              </div>
+
+              <div className="border-t border-dashed border-gray-400 my-2" />
+
+              <div className="text-center space-y-0.5">
+                <p className="font-bold text-[11px]">BOLETA DE VENTA ELECTRÓNICA</p>
+                <p className="font-extrabold text-xs">{serieBoleta || "B001"}-00000124</p>
               </div>
 
               <div className="border-t border-dashed border-gray-400 my-2" />
 
               <div className="space-y-0.5 text-[10px]">
-                <p>TICKET: #00124</p>
-                <p>FECHA: 25/09/2026 13:45</p>
-                <p>CLIENTE: Cliente Mostrador</p>
+                <p><span className="text-gray-500">FECHA:</span> 25/09/2026 13:45</p>
+                <p><span className="text-gray-500">CLIENTE:</span> CLIENTE VARIOS</p>
+                <p><span className="text-gray-500">DOC:</span> 00000000</p>
+                <p><span className="text-gray-500">PAGO:</span> EFECTIVO</p>
               </div>
 
               <div className="border-t border-dashed border-gray-400 my-2" />
 
-              <div className="space-y-1">
-                <div className="flex justify-between font-bold">
-                  <span>DESCRIPCIÓN</span>
+              <div className="space-y-1 text-[10px]">
+                <div className="flex justify-between font-bold border-b border-gray-200 pb-0.5">
+                  <span>CANT / DESCRIPCIÓN</span>
                   <span>TOTAL</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>1x Lomo Saltado</span>
-                  <span>S/ 28.00</span>
+                  <span>1x Lomo Saltado Criollo</span>
+                  <span className="font-semibold">S/ 28.00</span>
                 </div>
-                <div className="flex justify-between text-gray-600 text-[10px]">
-                  <span>+ Envase / Táper</span>
-                  <span>S/ 1.00</span>
+                <div className="flex justify-between text-gray-600 text-[9px] pl-2">
+                  <span>(Base S/ 23.73 + IGV S/ 4.27)</span>
                 </div>
                 <div className="flex justify-between">
                   <span>1x Chicha Morada 1L</span>
-                  <span>S/ 12.00</span>
+                  <span className="font-semibold">S/ 12.00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>1x Envase Biodegradable</span>
+                  <span className="font-semibold">S/ 1.00</span>
                 </div>
               </div>
 
               <div className="border-t border-dashed border-gray-400 my-2" />
 
-              <div className="flex justify-between font-bold text-xs pt-0.5">
-                <span>TOTAL A PAGAR:</span>
-                <span>S/ 41.00</span>
+              <div className="space-y-0.5 text-[10px]">
+                <div className="flex justify-between text-gray-600">
+                  <span>OP. GRAVADA:</span>
+                  <span>S/ 34.75</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>IGV (18%):</span>
+                  <span>S/ 6.25</span>
+                </div>
+                <div className="flex justify-between font-bold text-xs pt-1 border-t border-gray-200">
+                  <span>TOTAL A PAGAR:</span>
+                  <span>S/ 41.00</span>
+                </div>
               </div>
 
               <div className="border-t border-dashed border-gray-400 my-2" />
 
-              <div className="text-center text-[10px] space-y-0.5 pt-1 text-gray-700">
-                <p className="font-bold">{ticketFooter}</p>
-                <p className="text-[9px] text-gray-500">{ticketLegal}</p>
+              {/* QR SUNAT Simulation */}
+              <div className="flex flex-col items-center py-1">
+                <div className="w-20 h-20 bg-gray-100 border border-gray-300 rounded flex flex-col items-center justify-center p-1 text-[8px] text-gray-500">
+                  <div className="w-16 h-16 bg-black/10 rounded flex items-center justify-center font-mono text-[9px] text-black font-bold">
+                    [QR SUNAT]
+                  </div>
+                </div>
+                <span className="text-[8px] text-gray-400 font-mono mt-0.5">Hash: dGhpcyBpcyBhIHRlc3Q</span>
+              </div>
+
+              <div className="text-center text-[9px] space-y-0.5 pt-1 text-gray-700">
+                <p className="font-bold uppercase">{ticketFooter}</p>
+                <p className="text-[8px] text-gray-500">{ticketLegal}</p>
               </div>
             </div>
           </div>

@@ -9,9 +9,12 @@ import {
   Smartphone, 
   ChefHat, 
   Store, 
+  LayoutDashboard,
+  CreditCard,
   ArrowRight, 
   LogIn, 
-  ChevronDown
+  ChevronDown,
+  Play,
 } from "lucide-react";
 
 export default function SaasHeader() {
@@ -26,6 +29,44 @@ export default function SaasHeader() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const demoRoles = [
+    {
+      href: "/demos?role=admin",
+      icon: LayoutDashboard,
+      label: "Dueño / Admin",
+      desc: "Dashboard y métricas en vivo",
+      color: "bg-orange-500/20 text-orange-400",
+    },
+    {
+      href: "/demos?role=waiter",
+      icon: Smartphone,
+      label: "Mesero",
+      desc: "Toma de pedidos en mesa",
+      color: "bg-blue-500/20 text-blue-400",
+    },
+    {
+      href: "/demos?role=cashier",
+      icon: CreditCard,
+      label: "Cajero / POS",
+      desc: "Cobros y cierre de caja",
+      color: "bg-green-500/20 text-green-400",
+    },
+    {
+      href: "/demos?role=chef",
+      icon: ChefHat,
+      label: "Cocina (KDS)",
+      desc: "Despacho en tiempo real",
+      color: "bg-red-500/20 text-red-400",
+    },
+    {
+      href: "/demos?role=store",
+      icon: Store,
+      label: "Carta Digital QR",
+      desc: "Menú y delivery propio",
+      color: "bg-purple-500/20 text-purple-400",
+    },
+  ];
 
   return (
     <header
@@ -56,7 +97,7 @@ export default function SaasHeader() {
                 </span>
               </div>
               <span className="text-[11px] text-neutral-400 font-medium hidden sm:inline-block">
-                Software & Catálogo Digital para Comercios
+                Software &amp; Catálogo Digital para Comercios
               </span>
             </div>
           </Link>
@@ -70,60 +111,52 @@ export default function SaasHeader() {
               Módulos
             </a>
 
-            {/* Dropdown Demos en vivo */}
-            <div 
+            {/* Dropdown Demos en Vivo → /demos */}
+            <div
               className="relative"
               onMouseEnter={() => setDemosDropdown(true)}
               onMouseLeave={() => setDemosDropdown(false)}
             >
-              <button 
-                type="button"
-                className="flex items-center gap-1.5 text-sm font-medium text-neutral-300 hover:text-white transition-colors py-1 cursor-pointer"
+              <Link
+                href="/demos"
+                className="flex items-center gap-1.5 text-sm font-medium text-neutral-300 hover:text-white transition-colors py-1"
               >
+                <Play className="w-3.5 h-3.5 text-orange-400 fill-orange-400" />
                 <span>Demos en Vivo</span>
                 <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
-              </button>
+              </Link>
 
               {demosDropdown && (
-                <div className="absolute top-full left-0 w-64 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl p-2.5 space-y-1 animate-in fade-in zoom-in-95 duration-150">
-                  <Link
-                    href="/waiter"
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800/80 transition-colors text-neutral-300 hover:text-white"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center">
-                      <Smartphone className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-white">Modo Mesero</p>
-                      <p className="text-[11px] text-neutral-400">Toma de pedidos en mesa</p>
-                    </div>
-                  </Link>
-
-                  <Link
-                    href="/chef"
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800/80 transition-colors text-neutral-300 hover:text-white"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                      <ChefHat className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-white">Modo Cocina (KDS)</p>
-                      <p className="text-[11px] text-neutral-400">Despacho en tiempo real</p>
-                    </div>
-                  </Link>
-
-                  <Link
-                    href="/menu"
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800/80 transition-colors text-neutral-300 hover:text-white"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
-                      <Store className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-white">Carta Digital QR</p>
-                      <p className="text-[11px] text-neutral-400">Menú y delivery propio</p>
-                    </div>
-                  </Link>
+                <div className="absolute top-full left-0 w-72 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl p-2.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 px-2 pb-1.5 pt-0.5">
+                    Elige un rol para ver la demo
+                  </p>
+                  {demoRoles.map((role) => {
+                    const Icon = role.icon;
+                    return (
+                      <Link
+                        key={role.href}
+                        href={role.href}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800/80 transition-colors text-neutral-300 hover:text-white"
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${role.color}`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-white">{role.label}</p>
+                          <p className="text-[11px] text-neutral-400">{role.desc}</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                  <div className="border-t border-neutral-800 pt-2 mt-1">
+                    <Link
+                      href="/demos"
+                      className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-semibold text-orange-400 hover:bg-orange-500/10 transition-colors"
+                    >
+                      Ver todas las demos →
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>
@@ -201,13 +234,13 @@ export default function SaasHeader() {
             >
               Módulos del Sistema
             </a>
-            <a
-              href="#demos"
+            <Link
+              href="/demos"
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 text-base font-medium text-neutral-300 hover:text-white hover:bg-neutral-900 rounded-lg"
             >
               Demos en Vivo
-            </a>
+            </Link>
             <a
               href="#calculadora"
               onClick={() => setMobileMenuOpen(false)}
@@ -220,7 +253,7 @@ export default function SaasHeader() {
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 text-base font-medium text-neutral-300 hover:text-white hover:bg-neutral-900 rounded-lg"
             >
-              Planes & Precios
+              Planes &amp; Precios
             </a>
             <a
               href="#faq"
@@ -232,31 +265,24 @@ export default function SaasHeader() {
           </div>
 
           <div className="border-t border-neutral-800 pt-4 space-y-2">
-            <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider px-3 mb-1">
-              Demos directas:
+            <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider px-3 mb-2">
+              Demos por rol:
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Link
-                href="/waiter"
-                className="flex flex-col items-center justify-center p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-center"
-              >
-                <Smartphone className="w-4 h-4 text-orange-400 mb-1" />
-                <span className="text-[11px] font-medium text-neutral-200">Mesero</span>
-              </Link>
-              <Link
-                href="/chef"
-                className="flex flex-col items-center justify-center p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-center"
-              >
-                <ChefHat className="w-4 h-4 text-emerald-400 mb-1" />
-                <span className="text-[11px] font-medium text-neutral-200">Cocina</span>
-              </Link>
-              <Link
-                href="/menu"
-                className="flex flex-col items-center justify-center p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-center"
-              >
-                <Store className="w-4 h-4 text-sky-400 mb-1" />
-                <span className="text-[11px] font-medium text-neutral-200">Carta QR</span>
-              </Link>
+            <div className="grid grid-cols-2 gap-2">
+              {demoRoles.map((role) => {
+                const Icon = role.icon;
+                return (
+                  <Link
+                    key={role.href}
+                    href={role.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 p-2 rounded-lg bg-neutral-900 border border-neutral-800"
+                  >
+                    <Icon className="w-4 h-4 text-neutral-400 shrink-0" />
+                    <span className="text-[11px] font-medium text-neutral-200 truncate">{role.label}</span>
+                  </Link>
+                );
+              })}
             </div>
 
             <Link
